@@ -14,7 +14,6 @@ mod = [0,0,0];
 ml = length(imfinfo(reconmovnm));
 ff = 1; lf = ml;
 ind = 0;
-% [area, int] = deal(zeros(1,ml));
 ss = size(imread(reconmovnm));
 rxpos = NaN; rypos = NaN;
 oxpos = NaN; oypos = NaN;
@@ -41,10 +40,7 @@ ozrad = 10;
 zrad = ozrad;
 tmpd = dir(reconmovnm);
 datafol = reconmovnm(1:end-length(tmpd.name));
-% if ~exist([datafol, 'traces'],'dir'), mkdir([datafol, 'traces']); end
 if ~exist([datafol, 'movies'],'dir'), mkdir([datafol, 'movies']); end
-% clearvars tmpd
-% tmpd = dir([datafol, 'traces' filesep '*.csv']);
 if exist([datafol filesep 'tracest.mat'],'file')
     load([datafol filesep 'tracest.mat'])
     ntrace = length(tracest);
@@ -52,52 +48,6 @@ else
     tracest = struct('frame',[],'xpos',[],'ypos',[],'int',[],'area',[],'ishot',false,'ispair',false,'mask',[]);
     ntrace = 0;
 end
-% if ~isempty(tmpd)
-%     nf = length(tmpd);
-%     fname = @(name,x)[datafol, name, filesep, tmpd(x).name];
-%     fk = 1;
-%     for fi = 1:nf
-%         fileid = fopen(fname('traces',fi));
-%         fnames = textscan(fileid,'%s',5,'Delimiter',',');
-%         fnames = fnames{1};
-%         tmpcell = textscan(fileid,repmat('%f',1,5),'Delimiter',',');
-%         if isempty(tmpcell{1})
-%             fclose(fileid);
-%             delete(fname('traces',fi));
-%             mname = fname('movies',fi);
-%             if exist([mname(1:end-4) '.tif'],'file')
-%                 delete([mname(1:end-4) '.tif']);
-%             end
-%             continue;
-%         end
-%         for field = 1:length(fnames)
-%             for ti = 1:max(cellfun(@length,tmpcell))
-%                 tracest(fk).(fnames{field})(ti) = tmpcell{field}(ti);
-%             end
-%             tracest(fk).ishot = false;
-%             tracest(fk).ispair = false;
-%         end
-%         fclose(fileid);
-%         if fk<fi
-%             movefile(fname('traces',fi),fname('traces',fk));
-%             mname1 = fname('movies',fi);
-%             mname2 = fname('movies',fk);
-%             if exist([mname1(1:end-4) '.tif'],'file')
-%                 movefile([mname1(1:end-4) '.tif'],[mname2(1:end-4) '.tif']);
-%             end
-%         end
-%         fk = fk+1;
-%     end
-%     
-%     meanst = zeros(length(tracest),length(fieldnames(tracest)));
-%     for ti = 1:length(tracest)
-%         s = fieldnames(tracest(ti));
-%         for sj = 1:length(s)
-%             meanst(ti,sj) = mean(tracest(ti).(s{sj}));
-%         end
-%     end
-% end
-
 
 fh_img = figure(...
     'units','normalized',...
@@ -296,6 +246,8 @@ end
             if src~=fh_img, mod(3) = -inf; end
             zoom_in;
             mod(3) = 0;
+        else
+            cf_ball
         end
         frame_line(ah_scroll,cfr,[.8 .8 .8])
     end
