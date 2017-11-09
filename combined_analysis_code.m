@@ -35,8 +35,8 @@ zimgx = zimgy*screen(4)/screen(3);
 graphy = imgy-2*zimgy;
 graphx = (1-imgx)/2;
 cfr = 1;
-cintrad = 7;
-ozrad = 10;
+cintrad = 8;
+ozrad = 12;
 zrad = ozrad;
 tmpd = dir(reconmovnm);
 datafol = reconmovnm(1:end-length(tmpd.name));
@@ -176,7 +176,7 @@ disp_er = true;
 while true
     try
         waitfor(fh_img,'SelectionType','normal');
-        [area, int] = deal(zeros(1,ml));
+        [area, int, SNR] = deal(zeros(1,ml));
         zp = fh_img.CurrentPoint;
         tx = zp(1)*ss(2)+.5;
         ty = ss(1)-zp(2)*ss(1)+.5;
@@ -246,14 +246,12 @@ end
             if src~=fh_img, mod(3) = -inf; end
             zoom_in;
             mod(3) = 0;
-        else
-            cf_ball
         end
         frame_line(ah_scroll,cfr,[.8 .8 .8])
     end
     function key_fun(~,event)
         %list of keys
-        %escape, q,w,e, z,x,c, a,s, n, h, p
+        %escape, q,w,e, z,x,c, a,s, n, h, p, delete, backspace
         if strcmp(event.Key,'escape')
             disp_er = false;
             close all
@@ -336,6 +334,7 @@ end
             end
         end
         if strcmp(event.Key,'backspace')
+            ind = 0;
             upz = false;
             rxpos = NaN; rypos = NaN;
             move_callback(fh_img)
@@ -375,8 +374,8 @@ end
                 floor(rxpos-zrad):floor(rxpos+zrad),cfr);
             imagesc(zimg,[minrc maxrc])
             hold on
-            line([zrad+1 zrad+1],[zrad-1 zrad+3],'linewidth',.5,'color','r')
-            line([zrad-1 zrad+3],[zrad+1 zrad+1],'linewidth',.5,'color','r')
+%             line([zrad+1 zrad+1],[zrad-1 zrad+3],'linewidth',.5,'color','r')
+%             line([zrad-1 zrad+3],[zrad+1 zrad+1],'linewidth',.5,'color','r')
             line([zrad+.5-cintrad, zrad+1.5+cintrad, zrad+1.5+cintrad, zrad+0.5-cintrad, zrad+.5-cintrad],...
                 [zrad+.5-cintrad, zrad+0.5-cintrad, zrad+1.5+cintrad, zrad+1.5+cintrad, zrad+.5-cintrad],...
                 'color','k','linewidth',1);
@@ -389,8 +388,8 @@ end
                 floor(oxpos-zrad):floor(oxpos+zrad),cfr);
             imagesc(oimgc,[minoc maxoc]);
             hold on
-            line([zrad+1 zrad+1],[zrad-1 zrad+3],'linewidth',.5,'color','r')
-            line([zrad-1 zrad+3],[zrad+1 zrad+1],'linewidth',.5,'color','r')
+%             line([zrad+1 zrad+1],[zrad-1 zrad+3],'linewidth',.5,'color','r')
+%             line([zrad-1 zrad+3],[zrad+1 zrad+1],'linewidth',.5,'color','r')
             line([zrad+.5-cintrad, zrad+1.5+cintrad, zrad+1.5+cintrad, zrad+0.5-cintrad, zrad+.5-cintrad],...
                 [zrad+.5-cintrad, zrad+0.5-cintrad, zrad+1.5+cintrad, zrad+1.5+cintrad, zrad+.5-cintrad],...
                 'color','k','linewidth',1);
@@ -417,7 +416,7 @@ end
                     sizedif = sizedif-2;
                 end
             elseif sizedif < 0
-                while sizediff < 0
+                while sizedif < 0
                     mask(end+1:end+2,:,:) = zeros(2,size(mask,2),size(mask,3));
                     mask(:,end+1:end+2,:) = zeros(size(mask,1),2,size(mask,3));
                     mask(2:end-1,2:end-1,:) = mask(1:end-2,1:end-2,:);
@@ -441,32 +440,26 @@ end
         hold off
     end
     function [xp, yp] = cofint(img,tmpx,tmpy,frame)
-        k = 1; xp = zeros(1,27); yp = zeros(1,27);
-        for i = -1:1
-            for j = -1:1
-                for fri = -1:1
-                    if frame+fri<1, fri=0; end %#ok<FXSET>
-                    if frame+fri>ml, fri=0; end %#ok<FXSET>
-                    tmpimg = double(img(floor(tmpy-cintrad)+j:floor(tmpy+cintrad)+j,...
-                        floor(tmpx-cintrad)+i:floor(tmpx+cintrad)+i,...
-                        frame+fri));
-                    bkgdimg = double(img(floor(tmpy-zrad)+j:floor(tmpy+zrad)+j,...
-                        floor(tmpx-zrad)+i:floor(tmpx+zrad)+i,...
-                        frame+fri));
-                    try
-                        tmpimg = tmpimg-min([mean(bkgdimg,1) mean(bkgdimg,2)']);
-                    catch ME
-                        disp(zrad)
-                        disp(bkgdimg)
-                        disp(tmpimg)
-                        rethrow(ME)
-                    end
-                    cx = sum(tmpimg*(1:size(tmpimg,2))')/sum(tmpimg(:));
-                    cy = sum((1:size(tmpimg,1))*tmpimg)/sum(tmpimg(:));
-                    xp(k) = floor(tmpx-cintrad)+i+cx-.5;
-                    yp(k) = floor(tmpy-cintrad)+j+cy-.5;
-                    k = k+1;
+        k = 1; [xp, yp] = deal(zeros(1,49));
+        for i = -3:3
+            for j = -3:3
+                tmpimg = double(img(floor(tmpy-cintrad)+j:floor(tmpy+cintrad)+j,...
+                    floor(tmpx-cintrad)+i:floor(tmpx+cintrad)+i,...
+                    frame));
+                bkgdimg = double(img(floor(tmpy-zrad)+j:floor(tmpy+zrad)+j,...
+                    floor(tmpx-zrad)+i:floor(tmpx+zrad)+i,...
+                    frame));
+                try
+                    tmpimg = tmpimg-mean([min(bkgdimg,[],1) min(bkgdimg,[],2)']);
+                catch ME
+                    save bkd.mat bkgdimg
+                    rethrow(ME)
                 end
+                cx = sum(tmpimg*(1:size(tmpimg,2))')/sum(tmpimg(:));
+                cy = sum((1:size(tmpimg,1))*tmpimg)/sum(tmpimg(:));
+                xp(k) = floor(tmpx-cintrad)+i+cx;
+                yp(k) = floor(tmpy-cintrad)+j+cy;
+                k = k+1;
             end
         end
         xp = mean(xp);
@@ -502,6 +495,7 @@ end
         if ind > 0
             if any(tracest(ind).frame==frame)
                 int(frame) = tracest(ind).int(tracest(ind).frame==frame);
+                SNR(frame) = tracest(ind).SNR(tracest(ind).frame==frame);
                 done = true;
                 ifgc = get(fh_int_fit_graph,'Children');
                 for i = 1:length(ifgc)
@@ -524,7 +518,7 @@ end
             end
             tmp = double(oimg(floor(oypos-zrad):floor(oypos+zrad),...
                 floor(oxpos-zrad):floor(oxpos+zrad),frame));
-            int(frame) = twoDgaussianFitting_theta(tmp,false);
+            [int(frame),SNR(frame)] = twoDgaussianFitting_theta(tmp,false);
         end
         if disp
             axes(ah_int_graph)
@@ -532,7 +526,7 @@ end
             iph = plot(int);
         end
     end
-    function integ = twoDgaussianFitting_theta(img, disp)
+    function [integ, SNR] = twoDgaussianFitting_theta(img, disp)
         % c(1) = background
         % c(2) = amplitude
         % c(3) = x center
@@ -558,9 +552,8 @@ end
         end
         axes(ah_int_fit_graph)
         plot(gfit, [xdata(:), ydata(:)], img(:));
-%         rotate3d on
-%         title('Click another figure before pressing a key')
         c = coeffvalues(gfit);
+        SNR = c(2)/c(1);
         integ = quad2d(gfit,0.5,size(img,1)+.5,0.5,size(img,2)+.5)-c(1)*size(img,1)*size(img,2);
     end
     function scatter_points(frame)
@@ -707,6 +700,7 @@ end
             tracest(spt).xpos = xot(ff:lf);
             tracest(spt).ypos = yot(ff:lf);
             tracest(spt).int = int(ff:lf);
+            tracest(spt).SNR = SNR(ff:lf);
             tracest(spt).area = area(ff:lf);
             tracest(spt).mask = mask(:,:,ff:lf);
 %             tmps = fieldnames(tracest(end));
