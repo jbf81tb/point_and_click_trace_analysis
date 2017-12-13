@@ -1,7 +1,7 @@
 function SRRF_analysis_code(reconmovnm,origmovnm)
 %COMBINED_ANALYSIS_CODE Point-and-click trace analysis
 %
-% possible updates: saving background, saving clip in structure, 
+% possible updates: saving background, saving clip in structure,
 % saving both original and reconstructed clips as files or in the structure
 
 % Josh Ferguson
@@ -338,6 +338,47 @@ end
             rxpos = NaN; rypos = NaN;
             move_callback(fh_img)
         end
+        if strcmp(event.Key,'g') || strcmp(event.Key,'b')
+            if strcmp(event.Key,'g')
+                goto_trace;
+            elseif strcmp(event.Key,'b')
+                goto_trace(ind+1);
+            end
+        end
+    end
+    function goto_trace(varargin)
+        if nargin==0
+            dh_goto = dialog(...
+                'Units','Normalized',...
+                'Position',[.4 .4 .2 .2],...
+                'Name','Which trace?');
+            uicontrol(...
+                'Parent',dh_goto,...
+                'Style','text',...
+                'Units','Normalized',...
+                'Position', [.3 .7 .4 .1],...
+                'String','Which trace to go to?');
+            qbox = uicontrol(...
+                'Parent',dh_goto,...
+                'Style','edit',...
+                'Units','Normalized',...
+                'Position',[.3 .3 .4 .2],...
+                'Callback','set(gcf,''Windowstyle'',''normal'',''Visible'',''off'')',...
+                'Selected','on');
+            uicontrol(qbox)
+            waitfor(dh_goto,'Visible','off')
+            ind = num2str(qbox.String);
+        else
+            ind = varargin{1};
+        end
+        cfr = tracest(ind).frame(1);
+        x = tracest(ind).xpos(1);
+        y = tracest(ind).ypos(1);
+        move_callback(fh_img);
+        axes(ah_img)
+        hold on
+        scatter(x,y,200,'k','s');
+        mod = [0,0,0];
     end
     function delete_trace(~,~)
         tracest(ind) = [];
@@ -371,8 +412,8 @@ end
                 floor(rxpos-zrad):floor(rxpos+zrad),cfr);
             imagesc(zimg,[minrc maxrc])
             hold on
-%             line([zrad+1 zrad+1],[zrad-1 zrad+3],'linewidth',.5,'color','r')
-%             line([zrad-1 zrad+3],[zrad+1 zrad+1],'linewidth',.5,'color','r')
+            %             line([zrad+1 zrad+1],[zrad-1 zrad+3],'linewidth',.5,'color','r')
+            %             line([zrad-1 zrad+3],[zrad+1 zrad+1],'linewidth',.5,'color','r')
             line([zrad+.5-cintrad, zrad+1.5+cintrad, zrad+1.5+cintrad, zrad+0.5-cintrad, zrad+.5-cintrad],...
                 [zrad+.5-cintrad, zrad+0.5-cintrad, zrad+1.5+cintrad, zrad+1.5+cintrad, zrad+.5-cintrad],...
                 'color','k','linewidth',1);
@@ -385,8 +426,8 @@ end
                 floor(oxpos-zrad):floor(oxpos+zrad),cfr);
             imagesc(oimgc,[minoc maxoc]);
             hold on
-%             line([zrad+1 zrad+1],[zrad-1 zrad+3],'linewidth',.5,'color','r')
-%             line([zrad-1 zrad+3],[zrad+1 zrad+1],'linewidth',.5,'color','r')
+            %             line([zrad+1 zrad+1],[zrad-1 zrad+3],'linewidth',.5,'color','r')
+            %             line([zrad-1 zrad+3],[zrad+1 zrad+1],'linewidth',.5,'color','r')
             line([zrad+.5-cintrad, zrad+1.5+cintrad, zrad+1.5+cintrad, zrad+0.5-cintrad, zrad+.5-cintrad],...
                 [zrad+.5-cintrad, zrad+0.5-cintrad, zrad+1.5+cintrad, zrad+1.5+cintrad, zrad+.5-cintrad],...
                 'color','k','linewidth',1);
@@ -548,7 +589,7 @@ end
         gfit = fit([xdata(:), ydata(:)], img(:), F, 'StartPoint', c0, 'Lower', low, 'Upper', up);
         if disp
             fh_gauss_fit = figure;
-            plot(gfit, [xdata(:), ydata(:)], img(:)); 
+            plot(gfit, [xdata(:), ydata(:)], img(:));
             waitfor(fh_gauss_fit,'SelectionType','alt')
             close(fh_gauss_fit)
         end
@@ -639,11 +680,11 @@ end
             if dist<cintrad
                 ind = i;
                 uih_found = uicontrol('Parent',fh_text,...
-                'Style','Text',...
-                'FontSize',15,...
-                'Units','Normalized',...
-                'Position',[1/3 0 1/3 .1],...
-                'String',sprintf('Index = %u',ind));
+                    'Style','Text',...
+                    'FontSize',15,...
+                    'Units','Normalized',...
+                    'Position',[1/3 0 1/3 .1],...
+                    'String',sprintf('Index = %u',ind));
                 return;
             end
         end
@@ -689,30 +730,30 @@ end
         else
             spt = ntrace+1;
         end
-            tracest(spt).frame = ff:lf;
-            tracest(spt).xpos = xot(ff:lf);
-            tracest(spt).ypos = yot(ff:lf);
-            tracest(spt).int = int(ff:lf);
-            tracest(spt).srrfint = srrfint(ff:lf);
-            tracest(spt).SNR = SNR(ff:lf);
-            tracest(spt).area = area(ff:lf);
-            tracest(spt).mask = mask(:,:,ff:lf);
-            uih_saved = uicontrol('Parent',fh_text,...
-                'Style','Text',...
-                'FontSize',15,...
-                'Units','Normalized',...
-                'Position',[1/3 0 1/3 .1],...
-                'String','Saved!');
-            save([datafol filesep 'tracest.mat'],'tracest')
-            if ind==0
-                ntrace = ntrace+1;
-            end
-            pause(.5)
-            ind = already_found(rxpos,rypos,cfr);
-            scatter_points(cfr)
-            upz = false;
-            rxpos = NaN; rypos = NaN;
-            delete(uih_saved)
-%         end
+        tracest(spt).frame = ff:lf;
+        tracest(spt).xpos = xot(ff:lf);
+        tracest(spt).ypos = yot(ff:lf);
+        tracest(spt).int = int(ff:lf);
+        tracest(spt).srrfint = srrfint(ff:lf);
+        tracest(spt).SNR = SNR(ff:lf);
+        tracest(spt).area = area(ff:lf);
+        tracest(spt).mask = mask(:,:,ff:lf);
+        uih_saved = uicontrol('Parent',fh_text,...
+            'Style','Text',...
+            'FontSize',15,...
+            'Units','Normalized',...
+            'Position',[1/3 0 1/3 .1],...
+            'String','Saved!');
+        save([datafol filesep 'tracest.mat'],'tracest')
+        if ind==0
+            ntrace = ntrace+1;
+        end
+        pause(.5)
+        ind = already_found(rxpos,rypos,cfr);
+        scatter_points(cfr)
+        upz = false;
+        rxpos = NaN; rypos = NaN;
+        delete(uih_saved)
+        %         end
     end
 end
