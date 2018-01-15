@@ -1,4 +1,4 @@
-function combined_analysis_code(reconmovnm,origmovnm)
+function combined_analysis_code(reconmovnm,origmovnm,varargin)
 %COMBINED_ANALYSIS_CODE Point-and-click trace analysis
 %
 % possible updates: saving background, saving clip in structure,
@@ -8,7 +8,14 @@ function combined_analysis_code(reconmovnm,origmovnm)
 % Kural Lab
 % The Ohio State University
 % ferguson.621@osu.edu
-
+switch nargin
+    case 2
+        tmpd = dir(reconmovnm);
+        datafol = reconmovnm(1:end-length(tmpd.name));
+        save_loc = [datafol filesep 'tracest.mat'];
+    case 3
+        save_loc = varargin{1};
+end
 global nsh gsh bsh afh
 mod = [0,0,0];
 ml = length(imfinfo(reconmovnm));
@@ -25,7 +32,7 @@ for fr = 1:ml
     oimg(:,:,fr) = imread(origmovnm,fr);
 end
 simg = sort(rimg(:),'ascend');
-minrc = min(rimg(:)); maxrc = simg(ceil(0.9999*length(simg)));
+minrc = simg(ceil(0.0001*length(simg))); maxrc = simg(ceil(0.9999*length(simg)));
 minoc = min(oimg(:)); maxoc = max(oimg(:));
 imgy = .95;
 imgx = ss(2)/ss(1)*imgy*screen(4)/screen(3);
@@ -41,8 +48,8 @@ zrad = ozrad;
 tmpd = dir(reconmovnm);
 datafol = reconmovnm(1:end-length(tmpd.name));
 if ~exist([datafol, 'movies'],'dir'), mkdir([datafol, 'movies']); end
-if exist([datafol filesep 'tracest.mat'],'file')
-    load([datafol filesep 'tracest.mat'])
+if exist(save_loc,'file')
+    load(save_loc)
     ntrace = length(tracest);
 else
     tracest = struct('frame',[],'xpos',[],'ypos',[],'int',[],'area',[],'ishot',false,'ispair',false,'mask',[]);
@@ -216,10 +223,10 @@ while true
         end
         try
             if ~isempty(tracest(ntrace+1).frame)
-                save([datafol filesep 'tracest.mat'],'tracest')
+                save(save_loc,'tracest')
             end
         catch
-            save([datafol filesep 'tracest.mat'],'tracest')
+            save(save_loc,'tracest')
         end
         close all
         return;
@@ -300,6 +307,7 @@ end
             else
                 tracest(ntrace+1).ishot = true;
             end
+            save(save_loc,'tracest')
             scatter_points(cfr);
         end
         if strcmp(event.Key,'p')
@@ -308,6 +316,7 @@ end
             else
                 tracest(ntrace+1).ispair = true;
             end
+            save(save_loc,'tracest')
             scatter_points(cfr);
         end
         if strcmp(event.Key,'delete')
@@ -420,7 +429,7 @@ end
         tracest(ind) = [];
         ntrace = length(tracest);
         scatter_points(cfr);
-        save([datafol filesep 'tracest.mat'],'tracest')
+        save(save_loc,'tracest')
         filenm = [datafol, 'movies', filesep, sprintf('%04u',ind),'.tif'];
         if exist(filenm,'file'), delete(filenm); end
         ind = 0;
@@ -515,31 +524,45 @@ end
         axis off
         hold off
     end
-    function [xp, yp] = cofint(img,tmpx,tmpy,frame)
-        k = 1; [xp, yp] = deal(zeros(1,49));
-        for i = -3:3
-            for j = -3:3
-                tmpimg = double(img(floor(tmpy-cintrad)+j:floor(tmpy+cintrad)+j,...
-                    floor(tmpx-cintrad)+i:floor(tmpx+cintrad)+i,...
-                    frame));
-                bkgdimg = double(img(floor(tmpy-zrad)+j:floor(tmpy+zrad)+j,...
-                    floor(tmpx-zrad)+i:floor(tmpx+zrad)+i,...
-                    frame));
-                try
-                    tmpimg = tmpimg-mean([min(bkgdimg,[],1) min(bkgdimg,[],2)']);
-                catch ME
-                    save bkd.mat bkgdimg
-                    rethrow(ME)
-                end
-                cx = sum(tmpimg*(1:size(tmpimg,2))')/sum(tmpimg(:));
-                cy = sum((1:size(tmpimg,1))*tmpimg)/sum(tmpimg(:));
-                xp(k) = floor(tmpx-cintrad)+i+cx;
-                yp(k) = floor(tmpy-cintrad)+j+cy;
-                k = k+1;
-            end
+    function [cx, cy] = cofint(img,tmpx,tmpy,frame)
+%         k = 1; [xp, yp] = deal(zeros(1,49));
+%         for i = -3:3
+%             for j = -3:3
+%                 tmpimg = double(img(floor(tmpy-cintrad)+j:floor(tmpy+cintrad)+j,...
+%                     floor(tmpx-cintrad)+i:floor(tmpx+cintrad)+i,...
+%                     frame));
+%                 bkgdimg = double(img(floor(tmpy-zrad)+j:floor(tmpy+zrad)+j,...
+%                     floor(tmpx-zrad)+i:floor(tmpx+zrad)+i,...
+%                     frame));
+%                 try
+%                     tmpimg = tmpimg-mean([min(bkgdimg,[],1) min(bkgdimg,[],2)']);
+%                 catch ME
+%                     save bkd.mat bkgdimg
+%                     rethrow(ME)
+%                 end
+%                 cx = sum(tmpimg*(1:size(tmpimg,2))')/sum(tmpimg(:));
+%                 cy = sum((1:size(tmpimg,1))*tmpimg)/sum(tmpimg(:));
+%                 xp(k) = floor(tmpx-cintrad)+i+cx;
+%                 yp(k) = floor(tmpy-cintrad)+j+cy;
+%                 k = k+1;
+%             end
+%         end
+%         xp = mean(xp);
+%         yp = mean(yp);
+        
+        tmpimg = double(img(floor(tmpy-zrad):floor(tmpy+zrad),...
+            floor(tmpx-zrad):floor(tmpx+zrad),frame));
+        tmp_mask = edge(tmpimg,'canny',[.5 .9])>0;
+        tmp_mask = imfill(tmp_mask,'holes')>0;
+        tmpimg = tmpimg.*tmp_mask;
+        if sum(tmpimg(:))==0
+            cx = floor(tmpx); 
+            cy = floor(tmpy);
+        else
+            cx = floor(tmpx-zrad) + sum(tmpimg*(1:size(tmpimg,2))')/sum(tmpimg(:));
+            cy = floor(tmpy-zrad) + sum((1:size(tmpimg,1))*tmpimg)/sum(tmpimg(:));
         end
-        xp = mean(xp);
-        yp = mean(yp);
+        
     end
     function initialize_area(frame)
         tmp = double(rimg(floor(rypos-zrad):floor(rypos+zrad),...
@@ -561,7 +584,7 @@ end
         if ~done || redo
             area(frame) = sum(sum(mask(:,:,frame)));
             if redo
-                save([datafol filesep 'tracest.mat'],'tracest')
+                save(save_loc,'tracest')
             end
         end
         if disp
@@ -606,7 +629,7 @@ end
             if redo
                 tracest(ind).int(tracest(ind).frame==frame) = int(frame);
                 tracest(ind).SNR(tracest(ind).frame==frame) = SNR(frame);
-                save([datafol filesep 'tracest.mat'],'tracest')
+                save(save_loc,'tracest')
             end
         end
         if disp
@@ -714,7 +737,7 @@ end
         update_area(cfr,true);
         overlay_mask;
         cf_ball;
-        save([datafol filesep 'tracest.mat'],'tracest')
+        save(save_loc,'tracest')
     end
     function ind = already_found(xp,yp,frame)
         persistent uih_found
@@ -827,7 +850,7 @@ end
             'Units','Normalized',...
             'Position',[1/3 0 1/3 .1],...
             'String','Saved!');
-        save([datafol filesep 'tracest.mat'],'tracest')
+        save(save_loc,'tracest')
         if ind==0
             ntrace = ntrace+1;
         end

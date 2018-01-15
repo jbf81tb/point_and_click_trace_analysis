@@ -1,4 +1,4 @@
-function SRRF_analysis_code(reconmovnm,origmovnm)
+function SRRF_analysis_code(reconmovnm,origmovnm,varargin)
 %COMBINED_ANALYSIS_CODE Point-and-click trace analysis
 %
 % possible updates: saving background, saving clip in structure,
@@ -8,7 +8,12 @@ function SRRF_analysis_code(reconmovnm,origmovnm)
 % Kural Lab
 % The Ohio State University
 % ferguson.621@osu.edu
-
+switch nargin
+    case 2
+        save_loc = [datafol filesep 'tracest.mat'];
+    case 3
+        save_loc = varargin{1};
+end
 global nsh gsh bsh afh
 mod = [0,0,0];
 ml = length(imfinfo(reconmovnm));
@@ -40,8 +45,10 @@ ozrad = 12;
 zrad = ozrad;
 tmpd = dir(reconmovnm);
 datafol = reconmovnm(1:end-length(tmpd.name));
-if exist([datafol filesep 'tracest.mat'],'file')
-    load([datafol filesep 'tracest.mat'])
+if exist(save_loc,'file')
+    load_var = load(save_loc);
+    tracest = load_var.tracest;
+    disp(['Loaded file ' save_loc])
     ntrace = length(tracest);
 else
     tracest = struct('frame',[],'xpos',[],'ypos',[],'int',[],'area',[],'ishot',false,'ispair',false,'mask',[]);
@@ -215,10 +222,10 @@ while true
         end
         try
             if ~isempty(tracest(ntrace+1).frame)
-                save([datafol filesep 'tracest.mat'],'tracest')
+                save(save_loc,'tracest')
             end
         catch
-            save([datafol filesep 'tracest.mat'],'tracest')
+            save(save_loc,'tracest')
         end
         close all
         return;
@@ -367,24 +374,59 @@ end
                 'Selected','on');
             uicontrol(qbox)
             waitfor(dh_goto,'Visible','off')
-            ind = num2str(qbox.String);
+            ind = str2double(qbox.String);
+            close(dh_goto)
         else
             ind = varargin{1};
         end
-        cfr = tracest(ind).frame(1);
-        x = tracest(ind).xpos(1);
-        y = tracest(ind).ypos(1);
-        move_callback(fh_img);
-        axes(ah_img)
-        hold on
-        scatter(x,y,200,'k','s');
-        mod = [0,0,0];
+        if ind>length(tracest)
+            d = dialog(...
+                'Units','Normalized',...
+                'Position',[.4 .4 .2 .2],...
+                'Name','Finished',...
+                'KeyPressFcn',@key_fun);
+            uicontrol('Parent',d,...
+                'Units','Normalized',...
+                'Style','text',...
+                'Position',[.2 .5 .6 .1],...
+                'String','Esc to close all, or click to continue.');
+            uicontrol('Parent',d,...
+                'Units','Normalized',...
+                'Position',[.4 .2 .2 .1],...
+                'String','Continue',...
+                'Callback','delete(gcf)');
+        else
+            [area, int, SNR] = deal(zeros(1,ml));
+            mask = false(2*zrad+1, 2*zrad+1, ml);
+            cfr = tracest(ind).frame(1);
+            rxpos = tracest(ind).xpos(1);
+            rypos = tracest(ind).ypos(1);
+            mask(:,:,tracest(ind).frame) = tracest(ind).mask;
+            tcfr = cfr;
+            fff = tracest(ind).frame(1);
+            flf = tracest(ind).frame(end);
+            for ifr = fff:flf-1
+                update_int(ifr,false)
+                update_area(ifr,false)
+            end
+            update_int(flf,true)
+            update_area(flf,true)
+            cfr = fff;
+            sff;
+            cfr = flf;
+            slf;
+            cfr = tcfr;
+            upz=true;
+            mod(3) = -inf;
+            move_callback(fh_img);
+            mod = [0,0,0];
+        end
     end
     function delete_trace(~,~)
         tracest(ind) = [];
         ntrace = length(tracest);
         scatter_points(cfr);
-        save([datafol filesep 'tracest.mat'],'tracest')
+        save(save_loc,'tracest')
         ind = 0;
         close(afh)
     end
@@ -512,14 +554,19 @@ end
     function update_area(frame,disp)
         persistent aph
         done = false;
+        redo = false;
         if ind > 0
             if any(tracest(ind).frame==frame)
                 area(frame) = tracest(ind).area(tracest(ind).frame==frame);
                 done = true;
+                if area(frame) == 0, redo = true; end
             end
         end
-        if ~done
+        if ~done || redo
             area(frame) = sum(sum(mask(:,:,frame)));
+            if redo
+                save(save_loc,'tracest')
+            end
         end
         if disp
             axes(ah_area_graph)
@@ -530,12 +577,14 @@ end
     function update_int(frame,disp)
         persistent iph
         done = false;
+        redo = false;
         if ind > 0
             if any(tracest(ind).frame==frame)
                 int(frame) = tracest(ind).int(tracest(ind).frame==frame);
                 SNR(frame) = tracest(ind).SNR(tracest(ind).frame==frame);
                 srrfint(frame) = tracest(ind).srrfint(tracest(ind).frame==frame);
                 done = true;
+                if int(frame)==0, redo = true; end
                 ifgc = get(fh_int_fit_graph,'Children');
                 for i = 1:length(ifgc)
                     ihgc = get(ifgc(i),'Children');
@@ -546,7 +595,8 @@ end
                 end
             end
         end
-        if ~done
+        if ~done || redo
+            if redo, [oxpos, oypos] = cofint(oimg,rxpos,rypos,frame); end
             ifgc = get(fh_int_fit_graph,'Children');
             for i = 1:length(ifgc)
                 ihgc = get(ifgc(i),'Children');
@@ -562,6 +612,12 @@ end
                 floor(rxpos-cintrad):floor(rxpos+cintrad),frame));
             tmp = interpolate_image(tmp);
             srrfint(frame) = max(tmp(:));
+            if redo
+                tracest(ind).int(tracest(ind).frame==frame) = int(frame);
+                tracest(ind).SNR(tracest(ind).frame==frame) = SNR(frame);
+                tracest(ind).srrfint(tracest(ind).frame==frame) = srrfint(frame);
+                save(save_loc,'tracest')
+            end
         end
         if disp
             axes(ah_int_graph)
@@ -667,6 +723,7 @@ end
         update_area(cfr,true);
         overlay_mask;
         cf_ball;
+        save(save_loc,'tracest')
     end
     function ind = already_found(xp,yp,frame)
         persistent uih_found
@@ -744,7 +801,7 @@ end
             'Units','Normalized',...
             'Position',[1/3 0 1/3 .1],...
             'String','Saved!');
-        save([datafol filesep 'tracest.mat'],'tracest')
+        save(save_loc,'tracest')
         if ind==0
             ntrace = ntrace+1;
         end
