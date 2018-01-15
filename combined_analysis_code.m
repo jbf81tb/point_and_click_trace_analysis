@@ -524,32 +524,7 @@ end
         axis off
         hold off
     end
-    function [cx, cy] = cofint(img,tmpx,tmpy,frame)
-%         k = 1; [xp, yp] = deal(zeros(1,49));
-%         for i = -3:3
-%             for j = -3:3
-%                 tmpimg = double(img(floor(tmpy-cintrad)+j:floor(tmpy+cintrad)+j,...
-%                     floor(tmpx-cintrad)+i:floor(tmpx+cintrad)+i,...
-%                     frame));
-%                 bkgdimg = double(img(floor(tmpy-zrad)+j:floor(tmpy+zrad)+j,...
-%                     floor(tmpx-zrad)+i:floor(tmpx+zrad)+i,...
-%                     frame));
-%                 try
-%                     tmpimg = tmpimg-mean([min(bkgdimg,[],1) min(bkgdimg,[],2)']);
-%                 catch ME
-%                     save bkd.mat bkgdimg
-%                     rethrow(ME)
-%                 end
-%                 cx = sum(tmpimg*(1:size(tmpimg,2))')/sum(tmpimg(:));
-%                 cy = sum((1:size(tmpimg,1))*tmpimg)/sum(tmpimg(:));
-%                 xp(k) = floor(tmpx-cintrad)+i+cx;
-%                 yp(k) = floor(tmpy-cintrad)+j+cy;
-%                 k = k+1;
-%             end
-%         end
-%         xp = mean(xp);
-%         yp = mean(yp);
-        
+    function [cx, cy] = cofint(img,tmpx,tmpy,frame)        
         tmpimg = double(img(floor(tmpy-zrad):floor(tmpy+zrad),...
             floor(tmpx-zrad):floor(tmpx+zrad),frame));
         tmp_mask = edge(tmpimg,'canny',[.5 .9])>0;
@@ -562,7 +537,6 @@ end
             cx = floor(tmpx-zrad) + sum(tmpimg*(1:size(tmpimg,2))')/sum(tmpimg(:));
             cy = floor(tmpy-zrad) + sum((1:size(tmpimg,1))*tmpimg)/sum(tmpimg(:));
         end
-        
     end
     function initialize_area(frame)
         tmp = double(rimg(floor(rypos-zrad):floor(rypos+zrad),...
