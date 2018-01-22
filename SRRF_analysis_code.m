@@ -10,6 +10,8 @@ function SRRF_analysis_code(reconmovnm,origmovnm,varargin)
 % ferguson.621@osu.edu
 switch nargin
     case 2
+        tmpd = dir(reconmovnm);
+        datafol = reconmovnm(1:end-length(tmpd.name));
         save_loc = [datafol filesep 'tracest.mat'];
     case 3
         save_loc = varargin{1};
