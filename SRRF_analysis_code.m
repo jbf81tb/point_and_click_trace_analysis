@@ -192,8 +192,8 @@ while true
             [rxpos, rypos] = cofint(rimg,tx,ty,cfr);
         end
         ind = already_found(rxpos,rypos,cfr);
-        mask = false(2*zrad+1, 2*zrad+1, ml);
         if ind > 0
+            mask = zeros([size(tracest(ind).mask(:,:,1)) ml]);
             mask(:,:,tracest(ind).frame) = tracest(ind).mask;
             tcfr = cfr;
             fff = tracest(ind).frame(1);
@@ -210,6 +210,7 @@ while true
             slf;
             cfr = tcfr;
         else
+            mask = false(2*zrad+1, 2*zrad+1, ml);
             tracest(ntrace+1).ishot = false; %#ok<*AGROW>
             tracest(ntrace+1).ispair = false;
         end
