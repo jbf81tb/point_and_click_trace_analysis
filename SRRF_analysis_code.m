@@ -242,7 +242,6 @@ end
         elseif cfr>ml
             cfr = ml;
         end
-        ind = already_found(rxpos,rypos,cfr);
         axes(ah_img)
         imagesc(rimg(:,:,cfr),[minrc maxrc]);
         scatter_points(cfr)
@@ -599,7 +598,8 @@ end
             tmp = double(rimg(floor(rypos-cintrad):floor(rypos+cintrad),...
                 floor(rxpos-cintrad):floor(rxpos+cintrad),frame));
             tmp = interpolate_image(tmp);
-            srrfint(frame) = max(tmp(:));
+            tmp = sort(tmp,'descend');
+            srrfint(frame) = max(tmp(1:500));
             if redo
                 tracest(ind).int(tracest(ind).frame==frame) = int(frame);
                 tracest(ind).SNR(tracest(ind).frame==frame) = SNR(frame);

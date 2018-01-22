@@ -180,7 +180,7 @@ disp_er = true;
 while true
     try
         waitfor(fh_img,'SelectionType','normal');
-        [area, int, snr] = deal(zeros(1,ml));
+        [area, int, snr, srrfint] = deal(zeros(1,ml));
         zp = fh_img.CurrentPoint;
         tx = zp(1)*ss(2)+.5;
         ty = ss(1)-zp(2)*ss(1)+.5;
@@ -250,7 +250,7 @@ end
             if src~=fh_img, mod(3) = -inf; end
             zoom_in;
             mod(3) = 0;
-        else
+        elseif ind~=0
             cf_ball
         end
         frame_line(ah_scroll,cfr,[.8 .8 .8])
@@ -346,6 +346,24 @@ end
             rxpos = NaN; rypos = NaN;
             move_callback(fh_img)
         end
+        if strcmp(event.Key,'i')
+            [fname,fpath] = uigetfile('*.mat','Select the MAT file with x and y variables');
+            try
+                load([fpath filesep fname])
+                for ix = 1:length(x)
+                    rxpos = x(ix);
+                    oxpos = x(ix);
+                    rypos = y(ix);
+                    oypos = y(ix);
+                    save_all;
+                end
+            catch me
+                close all
+                rethrow(me)
+            end
+        end
+                    
+            
     end
     function delete_trace(~,~)
         tracest(ind) = [];
@@ -446,37 +464,65 @@ end
         axis off
         hold off
     end
-    function [xp, yp] = cofint(img,tmpx,tmpy,frame)
-        k = 1; xp = zeros(1,27); yp = zeros(1,27);
-        for i = -1:1
-            for j = -1:1
-                for fri = -1:1
-                    if frame+fri<1, fri=0; end %#ok<FXSET>
-                    if frame+fri>ml, fri=0; end %#ok<FXSET>
-                    tmpimg = double(img(floor(tmpy-cintrad)+j:floor(tmpy+cintrad)+j,...
-                        floor(tmpx-cintrad)+i:floor(tmpx+cintrad)+i,...
-                        frame+fri));
-                    bkgdimg = double(img(floor(tmpy-zrad)+j:floor(tmpy+zrad)+j,...
-                        floor(tmpx-zrad)+i:floor(tmpx+zrad)+i,...
-                        frame+fri));
-                    try
-                        tmpimg = tmpimg-min([mean(bkgdimg,1) mean(bkgdimg,2)']);
-                    catch ME
-                        disp(zrad)
-                        disp(bkgdimg)
-                        disp(tmpimg)
-                        rethrow(ME)
-                    end
-                    cx = sum(tmpimg*(1:size(tmpimg,2))')/sum(tmpimg(:));
-                    cy = sum((1:size(tmpimg,1))*tmpimg)/sum(tmpimg(:));
-                    xp(k) = floor(tmpx-cintrad)+i+cx-.5;
-                    yp(k) = floor(tmpy-cintrad)+j+cy-.5;
-                    k = k+1;
-                end
+    function [cx, cy] = cofint(img,tmpx,tmpy,frame)
+        img = double(img(floor(tmpy-zrad):floor(tmpy+zrad),...
+            floor(tmpx-zrad):floor(tmpx+zrad),frame));
+        cx = ceil(size(img,2)/2);
+        cy = ceil(size(img,1)/2);
+        maxi = 0;
+        for r = 0:ceil(sqrt(cx^2+cy^2))
+            [x, y] = meshgrid(1:size(img,2),1:size(img,1));
+            x = x-cx;
+            y = y-cy;
+            msk = round(sqrt(x.^2+y.^2))==r;
+            if sum(msk(:))==0, break; end
+            tmpimg = msk.*img;
+            if max(tmpimg(:))>maxi
+                maxi = max(tmpimg(:));
+                [my,mx] = find(tmpimg==maxi,1);
             end
         end
-        xp = mean(xp);
-        yp = mean(yp);
+        saved = false(size(img));
+        cx = mx;
+        cy = my;
+        saved(cy,cx) = true;
+        tmpimg = img;
+        nx = cx; ny = cy;
+        while true
+            for i = -1:1
+                for j = -1:1
+                    if i==0 && j==0, continue; end
+                    if cy+j>size(saved,1) || cy+j<=0, continue; end
+                    if cx+i>size(saved,2) || cx+i<=0, continue; end
+                    if saved(cy+j,cx+i), continue; end
+                    try
+                        dif = tmpimg(cy,cx)-tmpimg(cy+j,cx+i);
+                        if dif>=0
+                            nx(end+1) = cx+i;
+                            ny(end+1) = cy+j;
+                        end
+                    catch
+                    end
+                end
+            end
+            saved(cy,cx) = true;
+            rm_ind = nx==cx&ny==cy;
+            nx(rm_ind) = [];
+            ny(rm_ind) = [];
+            if isempty(nx) && isempty(ny), break; end
+            cx = nx(end);
+            cy = ny(end);
+        end
+        tmp_mask = imfill(saved,'holes');
+        
+        tmpimg = img.*tmp_mask;
+        if sum(tmpimg(:))==0
+            cx = floor(tmpx);
+            cy = floor(tmpy);
+        else
+            cx = floor(tmpx-zrad) + sum(tmpimg*(1:size(tmpimg,2))')/sum(tmpimg(:));
+            cy = floor(tmpy-zrad) + sum((1:size(tmpimg,1))*tmpimg)/sum(tmpimg(:));
+        end
     end
     function initialize_area(frame)
         tmp = double(rimg(floor(rypos-zrad):floor(rypos+zrad),...
@@ -508,6 +554,8 @@ end
         if ind > 0
             if any(tracest(ind).frame==frame)
                 int(frame) = tracest(ind).int(tracest(ind).frame==frame);
+                snr(frame) = tracest(ind).snr(tracest(ind).frame==frame);
+                srrfint(frame) = tracest(ind).srrfint(tracest(ind).frame==frame);
                 done = true;
                 ifgc = get(fh_int_fit_graph,'Children');
                 for i = 1:length(ifgc)
@@ -531,12 +579,22 @@ end
             tmp = double(oimg(floor(oypos-zrad):floor(oypos+zrad),...
                 floor(oxpos-zrad):floor(oxpos+zrad),frame));
             [int(frame), snr(frame)] = twoDgaussianFitting_theta(tmp,false);
+            tmp = double(rimg(floor(rypos-cintrad):floor(rypos+cintrad),...
+                floor(rxpos-cintrad):floor(rxpos+cintrad),frame));
+            tmp = interpolate_image(tmp);
+            tmp = sort(tmp,'descend');
+            srrfint(frame) = max(tmp(1:500));
         end
         if disp
             axes(ah_int_graph)
             if exist('iph','var'), delete(iph); end
             iph = plot(int);
         end
+    end
+    function int_img = interpolate_image(img)
+        [xhave, yhave] = meshgrid(1:size(img,2),1:size(img,1));
+        [xwant, ywant] = meshgrid(1:.1:size(img,2),1:.1:size(img,1));
+        int_img = griddata(xhave(:),yhave(:),double(img(:)),xwant,ywant,'v4');
     end
     function [integ, SNR] = twoDgaussianFitting_theta(img, disp)
         % c(1) = background
@@ -700,6 +758,7 @@ end
             tracest(spt).xpos = xot(ff:lf);
             tracest(spt).ypos = yot(ff:lf);
             tracest(spt).int = int(ff:lf);
+            tracest(spt).srrfint = srrfint(ff:lf);
             tracest(spt).area = area(ff:lf);
             tracest(spt).mask = mask(:,:,ff:lf);
             tracest(spt).snr = snr(ff:lf);
@@ -713,23 +772,23 @@ end
             if ind==0
                 ntrace = ntrace+1;
             end
-            pause(.5)
-            ind = already_found(rxpos,rypos,cfr);
+%             ind = already_found(rxpos,rypos,cfr);
+            ind = 0;
             scatter_points(cfr)
             upz = false;
             rxpos = NaN; rypos = NaN;
+            pause(.5)
             delete(uih_saved)
-%         end
     end
     function save_all(~,~)
+        ff = 1;
+        lf = ml;
         [xot,yot] = get_positions(rxpos,rypos,ff,lf);
         if ind>0
             spt = ind;
         else
             spt = ntrace+1;
         end
-        ff = 1;
-        lf = ml;
         for i = 1:ml
             initialize_area(i);
             update_area(i,false);
@@ -739,9 +798,12 @@ end
         tracest(spt).xpos = xot(ff:lf);
         tracest(spt).ypos = yot(ff:lf);
         tracest(spt).int = int(ff:lf);
+        tracest(spt).srrfint = srrfint(ff:lf);
         tracest(spt).area = area(ff:lf);
         tracest(spt).mask = mask(:,:,ff:lf);
         tracest(spt).snr = snr(ff:lf);
+        tracest(spt).ishot = false;
+        tracest(spt).ispair = false;
         uih_saved = uicontrol('Parent',fh_text,...
             'Style','Text',...
             'FontSize',15,...
@@ -752,11 +814,12 @@ end
         if ind==0
             ntrace = ntrace+1;
         end
-        pause(.5)
-        ind = already_found(rxpos,rypos,cfr);
+%         ind = already_found(rxpos,rypos,cfr);
+        ind = 0;
         scatter_points(cfr)
         upz = false;
         rxpos = NaN; rypos = NaN;
+        pause(.5)
         delete(uih_saved)
     end
 end
