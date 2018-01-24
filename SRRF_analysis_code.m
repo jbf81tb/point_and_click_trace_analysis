@@ -354,6 +354,9 @@ end
                 goto_trace(ind+1);
             end
         end
+        if strcmp(event.Key,'f')
+            set(fh_img,'SelectionType','normal');
+        end
     end
     function goto_trace(varargin)
         if nargin==0
