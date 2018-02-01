@@ -47,9 +47,10 @@ ozrad = 12;
 zrad = ozrad;
 tmpd = dir(reconmovnm);
 datafol = reconmovnm(1:end-length(tmpd.name));
-if ~exist([datafol, 'movies'],'dir'), mkdir([datafol, 'movies']); end
 if exist(save_loc,'file')
-    load(save_loc)
+    load_var = load(save_loc);
+    tracest = load_var.tracest;
+    disp(['Loaded file ' save_loc])
     ntrace = length(tracest);
 else
     tracest = struct('frame',[],'xpos',[],'ypos',[],'int',[],'area',[],'ishot',false,'ispair',false,'mask',[]);
@@ -59,7 +60,7 @@ end
 fh_img = figure(...
     'units','normalized',...
     'WindowStyle','modal',...
-    'OuterPosition',[0, 1-imgy, imgx, imgy],...
+    'Position',[0, 1-imgy, imgx, imgy],...
     'SelectionType','alt',...
     'Menubar','none',...
     'Toolbar','none',...
@@ -191,8 +192,8 @@ while true
             [rxpos, rypos] = cofint(rimg,tx,ty,cfr);
         end
         ind = already_found(rxpos,rypos,cfr);
-        mask = false(2*zrad+1, 2*zrad+1, ml);
         if ind > 0
+            mask = zeros([size(tracest(ind).mask(:,:,1)) ml]);
             mask(:,:,tracest(ind).frame) = tracest(ind).mask;
             tcfr = cfr;
             fff = tracest(ind).frame(1);
@@ -209,6 +210,7 @@ while true
             slf;
             cfr = tcfr;
         else
+            mask = false(2*zrad+1, 2*zrad+1, ml);
             tracest(ntrace+1).ishot = false; %#ok<*AGROW>
             tracest(ntrace+1).ispair = false;
         end
@@ -243,7 +245,6 @@ end
         elseif cfr>ml
             cfr = ml;
         end
-        ind = already_found(rxpos,rypos,cfr);
         axes(ah_img)
         imagesc(rimg(:,:,cfr),[minrc maxrc]);
         scatter_points(cfr)
@@ -307,7 +308,7 @@ end
             else
                 tracest(ntrace+1).ishot = true;
             end
-            save(save_loc,'tracest')
+            save(save_loc,'tracest');
             scatter_points(cfr);
         end
         if strcmp(event.Key,'p')
@@ -316,7 +317,7 @@ end
             else
                 tracest(ntrace+1).ispair = true;
             end
-            save(save_loc,'tracest')
+            save(save_loc,'tracest');
             scatter_points(cfr);
         end
         if strcmp(event.Key,'delete')
@@ -430,8 +431,6 @@ end
         ntrace = length(tracest);
         scatter_points(cfr);
         save(save_loc,'tracest')
-        filenm = [datafol, 'movies', filesep, sprintf('%04u',ind),'.tif'];
-        if exist(filenm,'file'), delete(filenm); end
         ind = 0;
         close(afh)
     end
@@ -524,14 +523,14 @@ end
         axis off
         hold off
     end
-    function [cx, cy] = cofint(img,tmpx,tmpy,frame)        
+    function [cx, cy] = cofint(img,tmpx,tmpy,frame)
         tmpimg = double(img(floor(tmpy-zrad):floor(tmpy+zrad),...
             floor(tmpx-zrad):floor(tmpx+zrad),frame));
         tmp_mask = edge(tmpimg,'canny',[.5 .9])>0;
         tmp_mask = imfill(tmp_mask,'holes')>0;
         tmpimg = tmpimg.*tmp_mask;
         if sum(tmpimg(:))==0
-            cx = floor(tmpx); 
+            cx = floor(tmpx);
             cy = floor(tmpy);
         else
             cx = floor(tmpx-zrad) + sum(tmpimg*(1:size(tmpimg,2))')/sum(tmpimg(:));
@@ -775,20 +774,6 @@ end
         else
             spt = ntrace+1;
         end
-        %         if any(abs(meanst(:,1)-(ff+lf)/2)<=1) && ...
-        %                 any(sqrt((meanst(:,2)-mean(xot(ff:lf))).^2+(meanst(:,3)-mean(yot(ff:lf))).^2)<=2)
-        %             afh = dialog('Units','Normalized',...
-        %                 'Position',[.4 .4 .2 .2]);
-        %             uicontrol('Parent',afh,...
-        %                 'Units','Normalized',...
-        %                 'Position',[.4 .4 .2 .2],...
-        %                 'Style','Text',...
-        %                 'FontSize',24,...
-        %                 'String','Already found!')
-        %             pause(.5)
-        %             close(afh);
-        %             return
-        %         else
         tracest(spt).frame = ff:lf;
         tracest(spt).xpos = xot(ff:lf);
         tracest(spt).ypos = yot(ff:lf);
@@ -796,28 +781,6 @@ end
         tracest(spt).SNR = SNR(ff:lf);
         tracest(spt).area = area(ff:lf);
         tracest(spt).mask = mask(:,:,ff:lf);
-        %             tmps = fieldnames(tracest(end));
-        %             for tmpsj = 1:length(tmps)
-        %                 meanst(end,tmpsj) = mean(tracest(end).(tmps{tmpsj}));
-        %             end
-        %             tmpd = dir([datafol, 'traces' filesep '*.csv']);
-        %             fnum = length(tmpd)+1;
-        %             filenm = [datafol, 'traces' filesep,...
-        %                 sprintf('%04u',fnum),'.csv'];
-        %             fid = fopen(filenm,'w');
-        %             fprintf(fid,'frame, rxpos, rypos, int, area\n');
-        %             for i = ff:lf
-        %                 fprintf(fid,'%u, %.3f, %.3f, %.4e, %u\n',...
-        %                     i,xot(i),yot(i),int(i),area(i));
-        %             end
-        %             fclose(fid);
-        filenm = [datafol, 'movies', filesep, sprintf('%04u',spt),'.tif'];
-        if exist(filenm,'file'), delete(filenm); end
-        for i = ff:lf
-            imwrite(rimg(floor(yot(i)-zrad):floor(yot(i)+zrad),...
-                floor(xot(i)-zrad):floor(xot(i)+zrad),i),...
-                filenm,'tif','writemode','append')
-        end
         uih_saved = uicontrol('Parent',fh_text,...
             'Style','Text',...
             'FontSize',15,...
@@ -834,6 +797,5 @@ end
         upz = false;
         rxpos = NaN; rypos = NaN;
         delete(uih_saved)
-        %         end
     end
 end

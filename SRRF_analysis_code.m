@@ -1,5 +1,5 @@
 function SRRF_analysis_code(reconmovnm,origmovnm,varargin)
-%COMBINED_ANALYSIS_CODE Point-and-click trace analysis
+%SRRF_ANALYSIS_CODE Point-and-click trace analysis
 %
 % possible updates: saving background, saving clip in structure,
 % saving both original and reconstructed clips as files or in the structure
@@ -32,7 +32,7 @@ for fr = 1:ml
     oimg(:,:,fr) = imread(origmovnm,fr);
 end
 simg = sort(rimg(:),'ascend');
-minrc = min(rimg(:)); maxrc = simg(ceil(0.9999*length(simg)));
+minrc = simg(ceil(0.0001*length(simg))); maxrc = simg(ceil(0.9999*length(simg)));
 minoc = min(oimg(:)); maxoc = max(oimg(:));
 imgy = .95;
 imgx = ss(2)/ss(1)*imgy*screen(4)/screen(3);
@@ -308,6 +308,7 @@ end
             else
                 tracest(ntrace+1).ishot = true;
             end
+            save(save_loc,'tracest');
             scatter_points(cfr);
         end
         if strcmp(event.Key,'p')
@@ -316,6 +317,7 @@ end
             else
                 tracest(ntrace+1).ispair = true;
             end
+            save(save_loc,'tracest');
             scatter_points(cfr);
         end
         if strcmp(event.Key,'delete')
@@ -531,7 +533,7 @@ end
         tmp_mask = imfill(tmp_mask,'holes')>0;
         tmpimg = tmpimg.*tmp_mask;
         if sum(tmpimg(:))==0
-            cx = floor(tmpx); 
+            cx = floor(tmpx);
             cy = floor(tmpy);
         else
             cx = floor(tmpx-zrad) + sum(tmpimg*(1:size(tmpimg,2))')/sum(tmpimg(:));
@@ -714,6 +716,12 @@ end
             mask(cp(1),cp(2),cfr) = false;
         end
         mask(:,:,cfr) = imfill(mask(:,:,cfr),'holes')>0;
+        if ind > 0
+            if any(tracest(ind).frame==cfr)
+                tracest(ind).area(tracest(ind).frame==cfr) = sum(sum(mask(:,:,cfr)));
+                tracest(ind).mask(:,:,tracest(ind).frame==cfr) = mask(:,:,cfr);
+            end
+        end
         update_area(cfr,true);
         overlay_mask;
         cf_ball;
@@ -805,6 +813,5 @@ end
         upz = false;
         rxpos = NaN; rypos = NaN;
         delete(uih_saved)
-        %         end
     end
 end
