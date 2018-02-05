@@ -24,7 +24,9 @@ ind = 0;
 ss = size(imread(reconmovnm));
 rxpos = NaN; rypos = NaN;
 oxpos = NaN; oypos = NaN;
+set(groot,'units','pixels');
 screen = get(groot,'ScreenSize');
+set(groot,'units','normalized');
 rimg = zeros([ss ml],'uint16');
 oimg = zeros([ss ml],'uint16');
 for fr = 1:ml
@@ -45,8 +47,6 @@ cfr = 1;
 cintrad = 8;
 ozrad = 12;
 zrad = ozrad;
-tmpd = dir(reconmovnm);
-datafol = reconmovnm(1:end-length(tmpd.name));
 if exist(save_loc,'file')
     load_var = load(save_loc);
     tracest = load_var.tracest;
@@ -74,7 +74,7 @@ scatter_points(cfr)
 axis equal
 axis off
 
-figure(...
+fh_scroll = figure(...
     'units','normalized',...
     'OuterPosition',[0 0 1 1-imgy],...
     'MenuBar','none',...
@@ -271,6 +271,16 @@ end
         elseif strcmp(event.Key,'e')
             save_trace;
         end
+        if strcmp(event.Key,'l')
+            key_test = 'l';
+            while ~strcmp(key_test,'u')
+                cp_tmp = get(groot,'PointerLocation');
+                set(fh_scroll,'CurrentPoint',cp_tmp);
+                move_callback(fh_scroll)
+                pause(1/30)
+                key_test = get(gcf,'CurrentCharacter');                
+            end
+        end
         if strcmp(event.Key,'z') || strcmp(event.Key,'x') || strcmp(event.Key,'c')
             if strcmp(event.Key,'z'), mod(3) = -1; end
             if strcmp(event.Key,'x'), mod(3) =  1; end
@@ -356,6 +366,9 @@ end
                 goto_trace(ind+1);
             end
         end
+        if strcmp(event.Key,'f')
+            set(fh_img,'SelectionType','normal');
+        end
     end
     function goto_trace(varargin)
         if nargin==0
@@ -401,7 +414,7 @@ end
                 'Callback','delete(gcf)');
         else
             [area, int, SNR] = deal(zeros(1,ml));
-            mask = false(2*zrad+1, 2*zrad+1, ml);
+            mask = false([size(tracest(ind).mask(:,:,1)), ml]);
             cfr = tracest(ind).frame(1);
             rxpos = tracest(ind).xpos(1);
             rypos = tracest(ind).ypos(1);
