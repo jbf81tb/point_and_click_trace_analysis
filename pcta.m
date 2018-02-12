@@ -1,20 +1,23 @@
-function combined_analysis_code(reconmovnm,origmovnm,varargin)
-%COMBINED_ANALYSIS_CODE Point-and-click trace analysis
+function pcta(reconmovnm,origmovnm,varargin)
+% PCTA: Point-and-click trace analysis
 %
-% possible updates: saving background, saving clip in structure,
-% saving both original and reconstructed clips as files
-
 % Josh Ferguson
 % Kural Lab
 % The Ohio State University
 % ferguson.621@osu.edu
+% https://github.com/jbf81tb/point_and_click_trace_analysis
 switch nargin
     case 2
         tmpd = dir(reconmovnm);
         datafol = reconmovnm(1:end-length(tmpd.name));
         save_loc = [datafol filesep 'tracest.mat'];
+        type = 'sim';
     case 3
         save_loc = varargin{1};
+        type = 'sim';
+    case 4
+        save_loc = varargin{1};
+        type = varargin{2};
 end
 global nsh gsh bsh afh
 mod = [0,0,0];
@@ -79,7 +82,7 @@ fh_scroll = figure(...
     'OuterPosition',[0 0 1 1-imgy],...
     'MenuBar','none',...
     'ToolBar','none',...
-    'Pointer','ibeam',...
+    'Pointer','crosshair',...
     'Resize','off',...
     'Name','Scroll',...
     'NumberTitle','off',...
@@ -184,7 +187,7 @@ disp_er = true;
 while true
     try
         waitfor(fh_img,'SelectionType','normal');
-        [area, int, SNR] = deal(zeros(1,ml));
+        [area, int, SNR, srrfint] = deal(zeros(1,ml));
         zp = fh_img.CurrentPoint;
         tx = zp(1)*ss(2)+.5;
         ty = ss(1)-zp(2)*ss(1)+.5;
@@ -587,6 +590,9 @@ end
             if any(tracest(ind).frame==frame)
                 int(frame) = tracest(ind).int(tracest(ind).frame==frame);
                 SNR(frame) = tracest(ind).SNR(tracest(ind).frame==frame);
+                if strcmpi(type,'srrf')
+                    srrfint(frame) = tracest(ind).srrfint(tracest(ind).frame==frame);
+                end
                 done = true;
                 if int(frame)==0, redo = true; end
                 ifgc = get(fh_int_fit_graph,'Children');
@@ -612,9 +618,19 @@ end
             tmp = double(oimg(floor(oypos-zrad):floor(oypos+zrad),...
                 floor(oxpos-zrad):floor(oxpos+zrad),frame));
             [int(frame),SNR(frame)] = twoDgaussianFitting_theta(tmp,false);
+            if strcmpi(type,'srrf')
+                tmp = double(rimg(floor(rypos-cintrad):floor(rypos+cintrad),...
+                    floor(rxpos-cintrad):floor(rxpos+cintrad),frame));
+                tmp = interpolate_image(tmp);
+                tmp = sort(tmp,'descend');
+                srrfint(frame) = max(tmp(1:500));
+            end
             if redo
                 tracest(ind).int(tracest(ind).frame==frame) = int(frame);
                 tracest(ind).SNR(tracest(ind).frame==frame) = SNR(frame);
+                if strcmpi(type,'srrf')
+                    tracest(ind).srrfint(tracest(ind).frame==frame) = srrfint(frame);
+                end
                 save(save_loc,'tracest')
             end
         end
@@ -653,6 +669,11 @@ end
         c = coeffvalues(gfit);
         SNR = c(2)/c(1);
         integ = quad2d(gfit,0.5,size(img,1)+.5,0.5,size(img,2)+.5)-c(1)*size(img,1)*size(img,2);
+    end
+    function int_img = interpolate_image(img)
+        [xhave, yhave] = meshgrid(1:size(img,2),1:size(img,1));
+        [xwant, ywant] = meshgrid(1:.1:size(img,2),1:.1:size(img,1));
+        int_img = griddata(xhave(:),yhave(:),double(img(:)),xwant,ywant,'v4');
     end
     function scatter_points(frame)
         if exist('nsh','var'), delete(nsh); end
@@ -791,6 +812,9 @@ end
         tracest(spt).xpos = xot(ff:lf);
         tracest(spt).ypos = yot(ff:lf);
         tracest(spt).int = int(ff:lf);
+        if strcmpi(type,'srrf')
+            tracest(spt).srrfint = srrfint(ff:lf);
+        end
         tracest(spt).SNR = SNR(ff:lf);
         tracest(spt).area = area(ff:lf);
         tracest(spt).mask = mask(:,:,ff:lf);
