@@ -55,7 +55,11 @@ zrad = ozrad;
 if exist(save_loc,'file')
     load_var = load(save_loc);
     tracest = load_var.tracest;
-    mask = load_var.mask;
+    if isfield('mask',load_var)
+        mask = load_var.mask;
+    else
+        mask = zeros([ss ml],'uint16');
+    end
     disp(['Loaded file ' save_loc])
     ntrace = length(tracest);
 else
@@ -264,7 +268,16 @@ end
     end
     function key_fun(~,event)
         %list of keys
-        %escape, q,w,e, z,x,c, a,s, n, h, p, delete, backspace
+        %escape - escape from program
+        %q,w,e - set frame window
+        %z,x,c - Zoom level
+        %a,s - individual frame movement
+        %n - show trace Numbers
+        %h,p - declare Hotspots and Pairs
+        %delete - delete trace from structure
+        %backspace - retract zoom functionality
+        %l,u - Lock or Unlock mouse scrolling
+        %k - save structure and mask ('Keep')
         if strcmp(event.Key,'escape')
             disp_er = false;
             close all
@@ -320,20 +333,16 @@ end
         if strcmp(event.Key,'h')
             if ind>0
                 tracest(ind).ishot = true;
-            else
-                tracest(ntrace+1).ishot = true;
+                save(save_loc,'-append','tracest');
+                scatter_points(cfr);
             end
-            save(save_loc,'tracest','mask');
-            scatter_points(cfr);
         end
         if strcmp(event.Key,'p')
             if ind>0
                 tracest(ind).ispair = true;
-            else
-                tracest(ntrace+1).ispair = true;
+                save(save_loc,'-append','tracest');
+                scatter_points(cfr);
             end
-            save(save_loc,'tracest','mask');
-            scatter_points(cfr);
         end
         if strcmp(event.Key,'delete')
             if ind>0
@@ -359,9 +368,9 @@ end
             end
         end
         if strcmp(event.Key,'backspace')
-            ind = 0;
             upz = false;
             rxpos = NaN; rypos = NaN;
+            ind = already_found(rxpos,rypos,-1);
             move_callback(fh_img)
         end
         if strcmp(event.Key,'g') || strcmp(event.Key,'b')
@@ -370,6 +379,9 @@ end
             elseif strcmp(event.Key,'b')
                 goto_trace(ind+1);
             end
+        end
+        if strcmp(event.Key,'k')
+            save(save_loc,'tracest','mask')
         end
     end
     function goto_trace(varargin)
@@ -555,7 +567,7 @@ end
                                        floor(rxpos-zrad):floor(rxpos+zrad),frame)>0));
             if redo
                 tracest(ind).area(tracest(ind).frame==frame) = area(frame);
-                save(save_loc,'tracest','mask')
+                save(save_loc,'-append','tracest')
             end
         end
         if disp
@@ -613,7 +625,7 @@ end
                 if strcmpi(type,'srrf')
                     tracest(ind).srrfint(tracest(ind).frame==frame) = srrfint(frame);
                 end
-                save(save_loc,'tracest','mask')
+                save(save_loc,'-append','tracest')
             end
         end
         if disp
@@ -734,7 +746,7 @@ end
         zoom_in;
         mod = 0;
         if ind>0
-            save(save_loc,'tracest','mask')
+            save(save_loc,'-append','tracest')
         end
     end
     function ind = already_found(xp,yp,frame)
@@ -767,7 +779,6 @@ end
         frame_line(ah_scroll,cfr,[.7 0 0])
     end
     function save_trace(~,~)
-%         [xot,yot] = get_positions(rxpos,rypos,ff,lf);
         if ind>0
             spt = ind;
         else
@@ -787,14 +798,11 @@ end
             'FontSize',15,...
             'Units','Normalized',...
             'Position',[1/3 0 1/3 .1],...
-            'String','Saved!');
+            'String',['Saved trace ' num2str(ind) '!']);
         save(save_loc,'tracest','mask')
-        if ind==0
-            ntrace = ntrace+1;
-        end
         pause(.5)
-        ind = already_found(rxpos,rypos,cfr);
         scatter_points(cfr)
+        ind = 0;
         upz = false;
         rxpos = NaN; rypos = NaN;
         delete(uih_saved)
