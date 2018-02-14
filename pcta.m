@@ -1,6 +1,8 @@
 function pcta(reconmovnm,origmovnm,varargin)
 % PCTA: Point-and-click trace analysis
 %
+% saving clips and linking clips to mask
+%
 % Josh Ferguson
 % Kural Lab
 % The Ohio State University
@@ -9,7 +11,7 @@ function pcta(reconmovnm,origmovnm,varargin)
 switch nargin
     case 2
         tmpd = dir(reconmovnm);
-        datafol = reconmovnm(1:end-length(tmpd.name));
+        datafol = reconmovnm(1:end-(length(tmpd.name)+1));
         save_loc = [datafol filesep 'tracest.mat'];
         type = 'sim';
     case 3
@@ -53,11 +55,13 @@ zrad = ozrad;
 if exist(save_loc,'file')
     load_var = load(save_loc);
     tracest = load_var.tracest;
+    mask = load_var.mask;
     disp(['Loaded file ' save_loc])
     ntrace = length(tracest);
 else
     tracest = struct('frame',[],'xpos',[],'ypos',[],'int',[],'area',[],'ishot',false,'ispair',false,'mask',[]);
     ntrace = 0;
+    mask = zeros([ss ml],'uint16');
 end
 
 fh_img = figure(...
@@ -187,17 +191,16 @@ disp_er = true;
 while true
     try
         waitfor(fh_img,'SelectionType','normal');
-        [area, int, SNR, srrfint] = deal(zeros(1,ml));
+        [area, int, SNR, srrfint, xpos, ypos] = deal(zeros(1,ml));
         zp = fh_img.CurrentPoint;
-        tx = zp(1)*ss(2)+.5;
-        ty = ss(1)-zp(2)*ss(1)+.5;
-        if tx>zrad && tx<=ss(2)-zrad && ty>zrad && ty<=ss(1)-zrad
-            [rxpos, rypos] = cofint(rimg,tx,ty,cfr);
+        rxpos = ss(2)*zp(1)+.5;
+        rypos = ss(1)*(1-zp(2))+.5;
+        if rxpos>zrad && rxpos<=ss(2)-zrad && rypos>zrad && rypos<=ss(1)-zrad
+            [rxpos, rypos] = cofint(rimg,rxpos,rypos,cfr);
+            xpos(cfr) = rxpos;
+            ypos(cfr) = rypos;
         end
-        ind = already_found(rxpos,rypos,cfr);
         if ind > 0
-            mask = zeros([size(tracest(ind).mask(:,:,1)) ml]);
-            mask(:,:,tracest(ind).frame) = tracest(ind).mask;
             tcfr = cfr;
             fff = tracest(ind).frame(1);
             flf = tracest(ind).frame(end);
@@ -213,7 +216,6 @@ while true
             slf;
             cfr = tcfr;
         else
-            mask = false(2*zrad+1, 2*zrad+1, ml);
             tracest(ntrace+1).ishot = false; %#ok<*AGROW>
             tracest(ntrace+1).ispair = false;
         end
@@ -228,10 +230,10 @@ while true
         end
         try
             if ~isempty(tracest(ntrace+1).frame)
-                save(save_loc,'tracest')
+                save(save_loc,'tracest','mask')
             end
         catch
-            save(save_loc,'tracest')
+            save(save_loc,'tracest','mask')
         end
         close all
         return;
@@ -254,9 +256,9 @@ end
         axis off
         axis equal
         if upz
-            if src~=fh_img, mod(3) = -inf; end
+            if src~=fh_img, mod = -inf; end
             zoom_in;
-            mod(3) = 0;
+            mod = 0;
         end
         frame_line(ah_scroll,cfr,[.8 .8 .8])
     end
@@ -285,19 +287,19 @@ end
             end
         end
         if strcmp(event.Key,'z') || strcmp(event.Key,'x') || strcmp(event.Key,'c')
-            if strcmp(event.Key,'z'), mod(3) = -1; end
-            if strcmp(event.Key,'x'), mod(3) =  1; end
-            if strcmp(event.Key,'c'), mod(3) = ozrad-zrad; end
-            zrad = zrad+mod(3);
+            if strcmp(event.Key,'z'), mod = -1; end
+            if strcmp(event.Key,'x'), mod =  1; end
+            if strcmp(event.Key,'c'), mod = ozrad-zrad; end
+            zrad = zrad+mod;
             zoom_in;
-            mod = [0,0,0];
+            mod = 0;
         end
         if strcmp(event.Key,'a') || strcmp(event.Key,'s')
-            if strcmp(event.Key,'a'), mod(3) = -1; end
-            if strcmp(event.Key,'s'), mod(3) =  1; end
-            cfr = cfr+mod(3);
+            if strcmp(event.Key,'a'), mod = -1; end
+            if strcmp(event.Key,'s'), mod =  1; end
+            cfr = cfr+mod;
             move_callback(fh_img);
-            mod = [0,0,0];
+            mod = 0;
         end
         if strcmp(event.Key,'n')
             if exist('gsh','var'), delete(gsh); end
@@ -321,7 +323,7 @@ end
             else
                 tracest(ntrace+1).ishot = true;
             end
-            save(save_loc,'tracest');
+            save(save_loc,'tracest','mask');
             scatter_points(cfr);
         end
         if strcmp(event.Key,'p')
@@ -330,7 +332,7 @@ end
             else
                 tracest(ntrace+1).ispair = true;
             end
-            save(save_loc,'tracest');
+            save(save_loc,'tracest','mask');
             scatter_points(cfr);
         end
         if strcmp(event.Key,'delete')
@@ -369,9 +371,6 @@ end
                 goto_trace(ind+1);
             end
         end
-        if strcmp(event.Key,'f')
-            set(fh_img,'SelectionType','normal');
-        end
     end
     function goto_trace(varargin)
         if nargin==0
@@ -409,19 +408,19 @@ end
                 'Units','Normalized',...
                 'Style','text',...
                 'Position',[.2 .5 .6 .1],...
-                'String','Esc to close all, or click to continue.');
+                'String','Esc to save and close all, or click to continue.');
             uicontrol('Parent',d,...
                 'Units','Normalized',...
                 'Position',[.4 .2 .2 .1],...
                 'String','Continue',...
                 'Callback','delete(gcf)');
         else
-            [area, int, SNR] = deal(zeros(1,ml));
-            mask = false([size(tracest(ind).mask(:,:,1)), ml]);
+            [area, int, SNR, xpos, ypos] = deal(zeros(1,ml));
             cfr = tracest(ind).frame(1);
             rxpos = tracest(ind).xpos(1);
+            xpos(cfr) = rxpos;
             rypos = tracest(ind).ypos(1);
-            mask(:,:,tracest(ind).frame) = tracest(ind).mask;
+            ypos(cfr) = rypos;
             tcfr = cfr;
             fff = tracest(ind).frame(1);
             flf = tracest(ind).frame(end);
@@ -436,17 +435,18 @@ end
             cfr = flf;
             slf;
             cfr = tcfr;
-            upz=true;
-            mod(3) = -inf;
+            upz = true;
+            mod = -inf;
             move_callback(fh_img);
-            mod = [0,0,0];
+            mod = 0;
         end
     end
     function delete_trace(~,~)
         tracest(ind) = [];
+        mask(mask(:)==ind) = 0;
         ntrace = length(tracest);
         scatter_points(cfr);
-        save(save_loc,'tracest')
+        save(save_loc,'tracest','mask')
         ind = 0;
         close(afh)
     end
@@ -459,42 +459,28 @@ end
             tmpy = ss(1)-zp(2)*ss(1)+.5;
             if tmpx>zrad && tmpx<=ss(2)-zrad && tmpy>zrad && tmpy<=ss(1)-zrad
                 [rxpos, rypos] = cofint(rimg,tmpx,tmpy,cfr);
+                xpos(cfr) = rxpos;
+                ypos(cfr) = rypos;
             end
-        elseif mod(3)==0
-            rxpos = rxpos + mod(1);
-            rypos = rypos + mod(2);
         else
             if rxpos>zrad && rxpos<=ss(2)-zrad && rypos>zrad && rypos<=ss(1)-zrad
                 [rxpos, rypos] = cofint(rimg,rxpos,rypos,cfr);
+                xpos(cfr) = rxpos;
+                ypos(cfr) = rypos;
             end
         end
+        ind = already_found(rxpos,rypos,cfr);
         if rxpos>zrad && rxpos<=ss(2)-zrad && rypos>zrad && rypos<=ss(1)-zrad
             axes(ah_zoom_img)
             zimg = rimg(floor(rypos-zrad):floor(rypos+zrad),...
                 floor(rxpos-zrad):floor(rxpos+zrad),cfr);
-            imagesc(zimg,[minrc maxrc])
-            hold on
-            %             line([zrad+1 zrad+1],[zrad-1 zrad+3],'linewidth',.5,'color','r')
-            %             line([zrad-1 zrad+3],[zrad+1 zrad+1],'linewidth',.5,'color','r')
-            line([zrad+.5-cintrad, zrad+1.5+cintrad, zrad+1.5+cintrad, zrad+0.5-cintrad, zrad+.5-cintrad],...
-                [zrad+.5-cintrad, zrad+0.5-cintrad, zrad+1.5+cintrad, zrad+1.5+cintrad, zrad+.5-cintrad],...
-                'color','k','linewidth',1);
-            axis off
-            hold off
+            imagesc(zimg,[minrc maxrc]);
             
             [oxpos, oypos] = cofint(oimg,rxpos,rypos,cfr);
             axes(ah_orig_img)
             oimgc = oimg(floor(oypos-zrad):floor(oypos+zrad),...
                 floor(oxpos-zrad):floor(oxpos+zrad),cfr);
             imagesc(oimgc,[minoc maxoc]);
-            hold on
-            %             line([zrad+1 zrad+1],[zrad-1 zrad+3],'linewidth',.5,'color','r')
-            %             line([zrad-1 zrad+3],[zrad+1 zrad+1],'linewidth',.5,'color','r')
-            line([zrad+.5-cintrad, zrad+1.5+cintrad, zrad+1.5+cintrad, zrad+0.5-cintrad, zrad+.5-cintrad],...
-                [zrad+.5-cintrad, zrad+0.5-cintrad, zrad+1.5+cintrad, zrad+1.5+cintrad, zrad+.5-cintrad],...
-                'color','k','linewidth',1);
-            axis off
-            hold off
             
             axes(ah_img)
             hold on
@@ -504,24 +490,16 @@ end
                 'color','r','linewidth',1);
             axis off
             hold off
-            
-            sizedif = size(mask,1)-size(zimg,1);
-            if sizedif == 0
-                if sum(sum(mask(:,:,cfr)))==0
-                    initialize_area(cfr)
+            mask_clip = mask(floor(rypos-zrad):floor(rypos+zrad),floor(rxpos-zrad):floor(rxpos+zrad),cfr);
+            if ~any(reshape(mask_clip>0,[],1))
+                tmp = edge(rimg(floor(rypos-zrad):floor(rypos+zrad),floor(rxpos-zrad):floor(rxpos+zrad),cfr),'canny',[.5 .9])>0;
+                tmp = imfill(tmp,'holes')>0;
+                if ind>0
+                    tmp = tmp*ind;
+                else
+                    tmp = tmp*(ntrace+1);
                 end
-            elseif sizedif > 0
-                while sizedif > 0
-                    mask = mask(2:end-1,2:end-1,:);
-                    sizedif = sizedif-2;
-                end
-            elseif sizedif < 0
-                while sizedif < 0
-                    mask(end+1:end+2,:,:) = zeros(2,size(mask,2),size(mask,3));
-                    mask(:,end+1:end+2,:) = zeros(size(mask,1),2,size(mask,3));
-                    mask(2:end-1,2:end-1,:) = mask(1:end-2,1:end-2,:);
-                    sizedif = sizedif+2;
-                end
+                mask(floor(rypos-zrad):floor(rypos+zrad),floor(rxpos-zrad):floor(rxpos+zrad),cfr) = tmp;
             end
             overlay_mask
             update_area(cfr,true)
@@ -534,7 +512,9 @@ end
         axes(ah_zoom_img)
         delete(msh)
         hold on
-        [iy,ix] = find(mask(:,:,cfr));
+        tmpmask = mask(floor(rypos-zrad):floor(rypos+zrad),...
+            floor(rxpos-zrad):floor(rxpos+zrad),cfr);
+        [iy,ix] = find(tmpmask);
         msh = scatter(ix,iy,50,[1 0 1],'linewidth',1);
         axis off
         hold off
@@ -542,9 +522,15 @@ end
     function [cx, cy] = cofint(img,tmpx,tmpy,frame)
         tmpimg = double(img(floor(tmpy-zrad):floor(tmpy+zrad),...
             floor(tmpx-zrad):floor(tmpx+zrad),frame));
-        tmp_mask = edge(tmpimg,'canny',[.5 .9])>0;
-        tmp_mask = imfill(tmp_mask,'holes')>0;
-        tmpimg = tmpimg.*tmp_mask;
+        tmpmask = mask(floor(tmpy-zrad):floor(tmpy+zrad),...
+            floor(tmpx-zrad):floor(tmpx+zrad),cfr);
+        if any(reshape(tmpmask,[],1))
+            tmp_mask = tmpmask;
+        else
+            tmp_mask = edge(tmpimg,'canny',[.5 .9])>0;
+            tmp_mask = imfill(tmp_mask,'holes')>0;
+        end
+        tmpimg = tmpimg.*double(tmp_mask>0);
         if sum(tmpimg(:))==0
             cx = floor(tmpx);
             cy = floor(tmpy);
@@ -552,12 +538,6 @@ end
             cx = floor(tmpx-zrad) + sum(tmpimg*(1:size(tmpimg,2))')/sum(tmpimg(:));
             cy = floor(tmpy-zrad) + sum((1:size(tmpimg,1))*tmpimg)/sum(tmpimg(:));
         end
-    end
-    function initialize_area(frame)
-        tmp = double(rimg(floor(rypos-zrad):floor(rypos+zrad),...
-            floor(rxpos-zrad):floor(rxpos+zrad),frame));
-        mask(:,:,frame) = edge(tmp,'canny',[.5 .9])>0;
-        mask(:,:,frame) = imfill(mask(:,:,frame),'holes')>0;
     end
     function update_area(frame,disp)
         persistent aph
@@ -571,9 +551,11 @@ end
             end
         end
         if ~done || redo
-            area(frame) = sum(sum(mask(:,:,frame)));
+            area(frame) = sum(sum(mask(floor(rypos-zrad):floor(rypos+zrad),...
+                                       floor(rxpos-zrad):floor(rxpos+zrad),frame)>0));
             if redo
-                save(save_loc,'tracest')
+                tracest(ind).area(tracest(ind).frame==frame) = area(frame);
+                save(save_loc,'tracest','mask')
             end
         end
         if disp
@@ -615,15 +597,15 @@ end
                 end
                 set(ifgc(i),'visible','on')
             end
-            tmp = double(oimg(floor(oypos-zrad):floor(oypos+zrad),...
+            timg = double(oimg(floor(oypos-zrad):floor(oypos+zrad),...
                 floor(oxpos-zrad):floor(oxpos+zrad),frame));
-            [int(frame),SNR(frame)] = twoDgaussianFitting_theta(tmp,false);
+            [int(frame),SNR(frame)] = twoDgaussianFitting_theta(timg,false);
             if strcmpi(type,'srrf')
-                tmp = double(rimg(floor(rypos-cintrad):floor(rypos+cintrad),...
+                timg = double(rimg(floor(rypos-cintrad):floor(rypos+cintrad),...
                     floor(rxpos-cintrad):floor(rxpos+cintrad),frame));
-                tmp = interpolate_image(tmp);
-                tmp = sort(tmp,'descend');
-                srrfint(frame) = max(tmp(1:500));
+                timg = interpolate_image(timg);
+                timg = sort(timg,'descend');
+                srrfint(frame) = max(timg(1:500));
             end
             if redo
                 tracest(ind).int(tracest(ind).frame==frame) = int(frame);
@@ -631,7 +613,7 @@ end
                 if strcmpi(type,'srrf')
                     tracest(ind).srrfint(tracest(ind).frame==frame) = srrfint(frame);
                 end
-                save(save_loc,'tracest')
+                save(save_loc,'tracest','mask')
             end
         end
         if disp
@@ -728,23 +710,32 @@ end
     function select_mask(src,~)
         cp = src.CurrentPoint;
         cp(2) = 1-cp(2);
-        cp = round(cp([2,1]).*(2*zrad+1)+.5);
+        cp = ceil(cp([2,1]).*(2*zrad+1));
+        cp = cp-zrad-1;
+        cp = cp + floor([rypos rxpos]);
         if strcmp(src.SelectionType,'normal')
-            mask(cp(1),cp(2),cfr) = true;
+            if ind>0
+                mask(cp(1),cp(2),cfr) = ind;
+            else
+                mask(cp(1),cp(2),cfr) = ntrace+1;
+            end
         elseif strcmp(src.SelectionType,'alt')
-            mask(cp(1),cp(2),cfr) = false;
+            mask(cp(1),cp(2),cfr) = 0;
         end
-        mask(:,:,cfr) = imfill(mask(:,:,cfr),'holes')>0;
+        mask(floor(rypos-zrad):floor(rypos+zrad),floor(rxpos-zrad):floor(rxpos+zrad),cfr) =...
+            imfill(mask(floor(rypos-zrad):floor(rypos+zrad),floor(rxpos-zrad):floor(rxpos+zrad),cfr),'holes')>0;
         if ind > 0
             if any(tracest(ind).frame==cfr)
-                tracest(ind).area(tracest(ind).frame==cfr) = sum(sum(mask(:,:,cfr)));
-                tracest(ind).mask(:,:,tracest(ind).frame==cfr) = mask(:,:,cfr);
+                tracest(ind).area(tracest(ind).frame==cfr) = ...
+                    sum(sum(mask(floor(rypos-zrad):floor(rypos+zrad),floor(rxpos-zrad):floor(rxpos+zrad),cfr)>0));
             end
         end
-        update_area(cfr,true);
-        overlay_mask;
-        cf_ball;
-        save(save_loc,'tracest')
+        mod = -inf;
+        zoom_in;
+        mod = 0;
+        if ind>0
+            save(save_loc,'tracest','mask')
+        end
     end
     function ind = already_found(xp,yp,frame)
         persistent uih_found
@@ -767,32 +758,6 @@ end
             end
         end
     end
-    function [xf, yf] = get_positions(xp,yp,first,last)
-        [xf,yf] = deal(zeros(1,ml));
-        if ind>0
-            for iframe = 1:length(tracest(ind).frame)
-                xf(tracest(ind).frame(iframe)) = tracest(ind).xpos(iframe);
-                yf(tracest(ind).frame(iframe)) = tracest(ind).ypos(iframe);
-            end
-        end
-        i = cfr;
-        if xf(i)==0 && yf(i)==0
-            [xf(i),yf(i)] = cofint(rimg,xp,yp,i);
-        end
-        while i<last
-            i = i+1;
-            if xf(i)==0 && yf(i)==0
-                [xf(i),yf(i)] = cofint(rimg,xf(i-1),yf(i-1),i);
-            end
-        end
-        i = cfr;
-        while i>first
-            i = i-1;
-            if xf(i)==0 && yf(i)==0
-                [xf(i),yf(i)] = cofint(rimg,xf(i+1),yf(i+1),i);
-            end
-        end
-    end
     function sff(~,~)
         ff = cfr;
         frame_line(ah_scroll,cfr,[0 .5 0])
@@ -802,29 +767,28 @@ end
         frame_line(ah_scroll,cfr,[.7 0 0])
     end
     function save_trace(~,~)
-        [xot,yot] = get_positions(rxpos,rypos,ff,lf);
+%         [xot,yot] = get_positions(rxpos,rypos,ff,lf);
         if ind>0
             spt = ind;
         else
             spt = ntrace+1;
         end
         tracest(spt).frame = ff:lf;
-        tracest(spt).xpos = xot(ff:lf);
-        tracest(spt).ypos = yot(ff:lf);
+        tracest(spt).xpos = xpos(ff:lf);
+        tracest(spt).ypos = ypos(ff:lf);
         tracest(spt).int = int(ff:lf);
         if strcmpi(type,'srrf')
             tracest(spt).srrfint = srrfint(ff:lf);
         end
         tracest(spt).SNR = SNR(ff:lf);
         tracest(spt).area = area(ff:lf);
-        tracest(spt).mask = mask(:,:,ff:lf);
         uih_saved = uicontrol('Parent',fh_text,...
             'Style','Text',...
             'FontSize',15,...
             'Units','Normalized',...
             'Position',[1/3 0 1/3 .1],...
             'String','Saved!');
-        save(save_loc,'tracest')
+        save(save_loc,'tracest','mask')
         if ind==0
             ntrace = ntrace+1;
         end
