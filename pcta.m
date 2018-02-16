@@ -55,7 +55,7 @@ zrad = ozrad;
 if exist(save_loc,'file')
     load_var = load(save_loc);
     tracest = load_var.tracest;
-    if isfield('mask',load_var)
+    if isfield(load_var,'mask')
         mask = load_var.mask;
     else
         mask = zeros([ss ml],'uint16');
@@ -159,7 +159,6 @@ fh_int_fit_graph = figure(...
     'KeyPressFcn',@key_fun);
 ah_int_fit_graph = axes('units','normalized');
 
-
 fh_text = figure(...
     'Units','Normalized',...
     'OuterPosition',[imgx+zimgx 1-zimgy 1-imgx-zimgx zimgy],...
@@ -235,6 +234,9 @@ while true
         try
             if ~isempty(tracest(ntrace+1).frame)
                 save(save_loc,'tracest','mask')
+            else
+                tracest(ntracest+1) = [];
+                save(save_loc,'tracest','mask')
             end
         catch
             save(save_loc,'tracest','mask')
@@ -270,13 +272,14 @@ end
         %list of keys
         %escape - escape from program
         %q,w,e - set frame window
+        %l,u - Lock or Unlock mouse scrolling
         %z,x,c - Zoom level
         %a,s - individual frame movement
         %n - show trace Numbers
+        %f - click in place
         %h,p - declare Hotspots and Pairs
         %delete - delete trace from structure
         %backspace - retract zoom functionality
-        %l,u - Lock or Unlock mouse scrolling
         %k - save structure and mask ('Keep')
         if strcmp(event.Key,'escape')
             disp_er = false;
@@ -329,6 +332,9 @@ end
             hold on
             nsh = text(x,y,num,'Color',[.7 0 0],'HorizontalAlignment','center');
             hold off
+        end
+        if strcmp(event.Key,'f')
+            set(fh_img,'SelectionType','normal');
         end
         if strcmp(event.Key,'h')
             if ind>0
@@ -509,7 +515,7 @@ end
                 if ind>0
                     tmp = tmp*ind;
                 else
-                    tmp = tmp*(ntrace+1);
+                    tmp = tmp*bitcmp(0,'uint16');
                 end
                 mask(floor(rypos-zrad):floor(rypos+zrad),floor(rxpos-zrad):floor(rxpos+zrad),cfr) = tmp;
             end
@@ -729,13 +735,13 @@ end
             if ind>0
                 mask(cp(1),cp(2),cfr) = ind;
             else
-                mask(cp(1),cp(2),cfr) = ntrace+1;
+                mask(cp(1),cp(2),cfr) = bitcmp(0,'uint16');
             end
         elseif strcmp(src.SelectionType,'alt')
             mask(cp(1),cp(2),cfr) = 0;
         end
         mask(floor(rypos-zrad):floor(rypos+zrad),floor(rxpos-zrad):floor(rxpos+zrad),cfr) =...
-            imfill(mask(floor(rypos-zrad):floor(rypos+zrad),floor(rxpos-zrad):floor(rxpos+zrad),cfr),'holes')>0;
+            imfill(mask(floor(rypos-zrad):floor(rypos+zrad),floor(rxpos-zrad):floor(rxpos+zrad),cfr),'holes');
         if ind > 0
             if any(tracest(ind).frame==cfr)
                 tracest(ind).area(tracest(ind).frame==cfr) = ...
@@ -793,6 +799,12 @@ end
         end
         tracest(spt).SNR = SNR(ff:lf);
         tracest(spt).area = area(ff:lf);
+        [i,j,k] = ind2sub(size(q),find(mask==bitcmp(0,'uint16')));
+        for ijk = 1:length(k)
+            if k>=ff && k<=lf
+                mask(i(ijk),j(ijk),k(ijk)) = spt;
+            end
+        end
         uih_saved = uicontrol('Parent',fh_text,...
             'Style','Text',...
             'FontSize',15,...
@@ -802,9 +814,9 @@ end
         save(save_loc,'tracest','mask')
         pause(.5)
         scatter_points(cfr)
-        ind = 0;
         upz = false;
         rxpos = NaN; rypos = NaN;
+        ind = already_found(rxpos,rypos,-1);
         delete(uih_saved)
     end
 end
