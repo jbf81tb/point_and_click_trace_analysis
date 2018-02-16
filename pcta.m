@@ -334,7 +334,10 @@ end
             hold off
         end
         if strcmp(event.Key,'f')
-            set(fh_img,'SelectionType','normal');
+            mod = -inf;
+            upz = true;
+            zoom_in
+            mod = 0;
         end
         if strcmp(event.Key,'h')
             if ind>0
@@ -375,7 +378,6 @@ end
         end
         if strcmp(event.Key,'backspace')
             upz = false;
-            rxpos = NaN; rypos = NaN;
             ind = already_found(rxpos,rypos,-1);
             move_callback(fh_img)
         end
@@ -799,12 +801,9 @@ end
         end
         tracest(spt).SNR = SNR(ff:lf);
         tracest(spt).area = area(ff:lf);
-        [i,j,k] = ind2sub(size(q),find(mask==bitcmp(0,'uint16')));
-        for ijk = 1:length(k)
-            if k>=ff && k<=lf
-                mask(i(ijk),j(ijk),k(ijk)) = spt;
-            end
-        end
+        [i,j,k] = ind2sub(size(mask),find(mask==bitcmp(0,'uint16')));
+        cond = k>=ff & k<=lf;
+        mask(i(cond),j(cond),k(cond)) = spt;        
         uih_saved = uicontrol('Parent',fh_text,...
             'Style','Text',...
             'FontSize',15,...
@@ -815,7 +814,6 @@ end
         pause(.5)
         scatter_points(cfr)
         upz = false;
-        rxpos = NaN; rypos = NaN;
         ind = already_found(rxpos,rypos,-1);
         delete(uih_saved)
     end
