@@ -233,12 +233,15 @@ while true
         end
         try
             if ~isempty(tracest(ntrace+1).frame)
+                mask(mask==bitcmp(0,'uint16')) = 0;
                 save(save_loc,'tracest','mask')
             else
-                tracest(ntracest+1) = [];
+                tracest(ntrace+1) = [];
+                mask(mask==bitcmp(0,'uint16')) = 0;
                 save(save_loc,'tracest','mask')
             end
         catch
+            mask(mask==bitcmp(0,'uint16')) = 0;
             save(save_loc,'tracest','mask')
         end
         close all
@@ -269,8 +272,8 @@ end
         frame_line(ah_scroll,cfr,[.8 .8 .8])
     end
     function key_fun(~,event)
-        %list of keys
-        %escape - escape from program
+        %%%%% List of keys %%%%%
+        %escape - save and escape from program
         %q,w,e - set frame window
         %l,u - Lock or Unlock mouse scrolling
         %z,x,c - Zoom level
@@ -279,7 +282,7 @@ end
         %f - click in place
         %h,p - declare Hotspots and Pairs
         %delete - delete trace from structure
-        %backspace - retract zoom functionality
+        %backspace - stop zooming and graphing
         %k - save structure and mask ('Keep')
         if strcmp(event.Key,'escape')
             disp_er = false;
@@ -341,14 +344,22 @@ end
         end
         if strcmp(event.Key,'h')
             if ind>0
-                tracest(ind).ishot = true;
+                if tracest(ind).ishot
+                    tracest(ind).ishot = false;
+                else
+                    tracest(ind).ishot = true;
+                end
                 save(save_loc,'-append','tracest');
                 scatter_points(cfr);
             end
         end
         if strcmp(event.Key,'p')
             if ind>0
-                tracest(ind).ispair = true;
+                if tracest(ind).ispair
+                    tracest(ind).ispair = false;
+                else
+                    tracest(ind).ispair = true;
+                end
                 save(save_loc,'-append','tracest');
                 scatter_points(cfr);
             end
@@ -385,10 +396,15 @@ end
             if strcmp(event.Key,'g')
                 goto_trace;
             elseif strcmp(event.Key,'b')
+                mod = -inf;
+                upz = true;
+                zoom_in
+                mod = 0;
                 goto_trace(ind+1);
             end
         end
         if strcmp(event.Key,'k')
+            mask(mask==bitcmp(0,'uint16')) = 0;
             save(save_loc,'tracest','mask')
         end
     end
@@ -418,7 +434,7 @@ end
         else
             ind = varargin{1};
         end
-        if ind>length(tracest)
+        if ind>length(tracest) || isempty(tracest(ind).frame)
             d = dialog(...
                 'Units','Normalized',...
                 'Position',[.4 .4 .2 .2],...
@@ -464,6 +480,7 @@ end
     function delete_trace(~,~)
         tracest(ind) = [];
         mask(mask(:)==ind) = 0;
+        mask(mask==bitcmp(0,'uint16')) = 0;
         ntrace = length(tracest);
         scatter_points(cfr);
         save(save_loc,'tracest','mask')
@@ -801,6 +818,8 @@ end
         end
         tracest(spt).SNR = SNR(ff:lf);
         tracest(spt).area = area(ff:lf);
+        tracest(spt).ishot = false;
+        tracest(spt).ispair = false;
         [i,j,k] = ind2sub(size(mask),find(mask==bitcmp(0,'uint16')));
         cond = k>=ff & k<=lf;
         mask(i(cond),j(cond),k(cond)) = spt;        
@@ -810,6 +829,7 @@ end
             'Units','Normalized',...
             'Position',[1/3 0 1/3 .1],...
             'String',['Saved trace ' num2str(ind) '!']);
+        mask(mask==bitcmp(0,'uint16')) = 0;
         save(save_loc,'tracest','mask')
         pause(.5)
         scatter_points(cfr)
