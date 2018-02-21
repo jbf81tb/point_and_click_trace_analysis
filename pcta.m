@@ -50,7 +50,7 @@ graphy = imgy-2*zimgy;
 graphx = (1-imgx)/2;
 cfr = 1;
 cintrad = 8;
-ozrad = 12;
+ozrad = 10;
 zrad = ozrad;
 if exist(save_loc,'file')
     load_var = load(save_loc);
@@ -406,6 +406,7 @@ end
         if strcmp(event.Key,'k')
             mask(mask==bitcmp(0,'uint16')) = 0;
             save(save_loc,'tracest','mask')
+            ntrace = length(tracest);
         end
     end
     function goto_trace(varargin)
@@ -821,7 +822,9 @@ end
         tracest(spt).ishot = false;
         tracest(spt).ispair = false;
         [i,j,k] = ind2sub(size(mask),find(mask==bitcmp(0,'uint16')));
-        cond = k>=ff & k<=lf;
+        cond = i>=min(ypos(ff:lf))-zrad & i<=max(ypos(ff:lf))+zrad &...
+               j>=min(xpos(ff:lf))-zrad & j<=max(xpos(ff:lf))+zrad &...
+               k>=ff & k<=lf;
         mask(i(cond),j(cond),k(cond)) = spt;        
         uih_saved = uicontrol('Parent',fh_text,...
             'Style','Text',...
@@ -831,6 +834,7 @@ end
             'String',['Saved trace ' num2str(ind) '!']);
         mask(mask==bitcmp(0,'uint16')) = 0;
         save(save_loc,'tracest','mask')
+        ntrace = length(tracest);
         pause(.5)
         scatter_points(cfr)
         upz = false;
