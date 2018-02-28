@@ -1,7 +1,7 @@
 function pcta(reconmovnm,origmovnm,varargin)
 % PCTA: Point-and-click trace analysis
 %
-% saving clips and linking clips to mask
+% TODO: saving clips and linking clips to mask
 %
 % Josh Ferguson
 % Kural Lab
@@ -49,7 +49,6 @@ zimgx = zimgy*screen(4)/screen(3);
 graphy = imgy-2*zimgy;
 graphx = (1-imgx)/2;
 cfr = 1;
-cintrad = 8;
 ozrad = 10;
 zrad = ozrad;
 if exist(save_loc,'file')
@@ -63,7 +62,7 @@ if exist(save_loc,'file')
     disp(['Loaded file ' save_loc])
     ntrace = length(tracest);
 else
-    tracest = struct('frame',[],'xpos',[],'ypos',[],'int',[],'area',[],'ishot',false,'ispair',false,'mask',[]);
+    tracest = struct('frame',[],'xpos',[],'ypos',[],'int',[],'area',[],'ishot',false,'ispair',false);
     ntrace = 0;
     mask = zeros([ss ml],'uint16');
 end
@@ -639,11 +638,11 @@ end
                 floor(oxpos-zrad):floor(oxpos+zrad),frame));
             [int(frame),SNR(frame)] = twoDgaussianFitting_theta(timg,false);
             if strcmpi(type,'srrf')
-                timg = double(rimg(floor(rypos-cintrad):floor(rypos+cintrad),...
-                    floor(rxpos-cintrad):floor(rxpos+cintrad),frame));
+                timg = double(rimg(floor(rypos-ozrad):floor(rypos+ozrad),...
+                    floor(rxpos-ozrad):floor(rxpos+ozrad),frame));
                 timg = interpolate_image(timg);
                 timg = sort(timg,'descend');
-                srrfint(frame) = max(timg(1:500));
+                srrfint(frame) = sum(double(timg(1:500)));
             end
             if redo
                 tracest(ind).int(tracest(ind).frame==frame) = int(frame);
@@ -784,7 +783,7 @@ end
             if isempty(frind), continue; end
             dist = sqrt((tracest(i).xpos(frind)-xp)^2+...
                 (tracest(i).ypos(frind)-yp)^2);
-            if dist<cintrad
+            if dist<ozrad
                 ind = i;
                 uih_found = uicontrol('Parent',fh_text,...
                     'Style','Text',...
@@ -819,8 +818,10 @@ end
         end
         tracest(spt).SNR = SNR(ff:lf);
         tracest(spt).area = area(ff:lf);
-        tracest(spt).ishot = false;
-        tracest(spt).ispair = false;
+        if ind==0
+            tracest(spt).ishot = false;
+            tracest(spt).ispair = false;
+        end
         [i,j,k] = ind2sub(size(mask),find(mask==bitcmp(0,'uint16')));
         cond = i>=min(ypos(ff:lf))-zrad & i<=max(ypos(ff:lf))+zrad &...
                j>=min(xpos(ff:lf))-zrad & j<=max(xpos(ff:lf))+zrad &...

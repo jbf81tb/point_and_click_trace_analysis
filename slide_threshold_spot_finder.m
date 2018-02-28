@@ -1,15 +1,21 @@
-function [x,y] = slide_threshold_spot_finder(img)
+function [x,y,t1] = slide_threshold_spot_finder(img)
 x = []; y = [];
 if ischar(img)
     img = imread(img);
 end
 ss = size(img);
 img = imgaussfilt(img,mean(ss)/300);
+set(groot,'Units','Pixels');
 screen = get(groot,'ScreenSize');
 imgy = 1;
 imgx = ss(2)/ss(1)*imgy*screen(4)/screen(3);
+if imgx>0.9
+    imgx = 0.9;
+    imgy = ss(1)/ss(2)*imgx*screen(3)/screen(4);
+end
 minc = min(img(:)); maxc = max(img(:));
 disp_er = true;
+t1=0;
 
 
 fh_img = figure(...
