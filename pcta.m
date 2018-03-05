@@ -39,7 +39,9 @@ for fr = 1:ml
     oimg(:,:,fr) = imread(origmovnm,fr);
 end
 simg = sort(rimg(:),'ascend');
-minrc = simg(ceil(0.0001*length(simg))); maxrc = simg(ceil(0.9999*length(simg)));
+minrc = simg(ceil(0.0001*length(simg))); 
+medrc = simg(ceil(0.4*length(simg))); 
+maxrc = simg(ceil(0.9999*length(simg)));
 minoc = min(oimg(:)); maxoc = max(oimg(:));
 imgy = .95;
 imgx = ss(2)/ss(1)*imgy*screen(4)/screen(3);
@@ -79,7 +81,7 @@ fh_img = figure(...
     'KeyPressFcn',@key_fun);
 ah_img = axes('units','normalized',...
     'position',[0 0 1 1]);
-imagesc(rimg(:,:,cfr),[minrc maxrc])
+imagesc(rimg(:,:,cfr),[medrc maxrc])
 scatter_points(cfr)
 axis equal
 axis off
@@ -259,7 +261,7 @@ end
             cfr = ml;
         end
         axes(ah_img)
-        imagesc(rimg(:,:,cfr),[minrc maxrc]);
+        imagesc(rimg(:,:,cfr),[medrc maxrc]);
         scatter_points(cfr)
         axis off
         axis equal
