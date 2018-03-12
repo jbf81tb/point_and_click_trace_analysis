@@ -51,7 +51,7 @@ zimgx = zimgy*screen(4)/screen(3);
 graphy = imgy-2*zimgy;
 graphx = (1-imgx)/2;
 cfr = 1;
-ozrad = 10;
+ozrad = 5;
 zrad = ozrad;
 if exist(save_loc,'file')
     load_var = load(save_loc);
@@ -204,6 +204,7 @@ while true
             xpos(cfr) = rxpos;
             ypos(cfr) = rypos;
         end
+        ind = already_found(rxpos,rypos,cfr);
         if ind > 0
             tcfr = cfr;
             fff = tracest(ind).frame(1);
@@ -235,15 +236,27 @@ while true
         try
             if ~isempty(tracest(ntrace+1).frame)
                 mask(mask==bitcmp(0,'uint16')) = 0;
-                save(save_loc,'tracest','mask')
+                if strcmpi(type,'sim')
+                    save(save_loc,'tracest','mask')
+                else
+                    save(save_loc,'tracest')
+                end
             else
                 tracest(ntrace+1) = [];
                 mask(mask==bitcmp(0,'uint16')) = 0;
-                save(save_loc,'tracest','mask')
+                if strcmpi(type,'sim')
+                    save(save_loc,'tracest','mask')
+                else
+                    save(save_loc,'tracest')
+                end
             end
         catch
             mask(mask==bitcmp(0,'uint16')) = 0;
-            save(save_loc,'tracest','mask')
+            if strcmpi(type,'sim')
+                save(save_loc,'tracest','mask')
+            else
+                save(save_loc,'tracest')
+            end
         end
         close all
         return;
@@ -297,13 +310,20 @@ end
             save_trace;
         end
         if strcmp(event.Key,'l')
+            cp_tmp = get(groot,'PointerLocation');
+            set(groot,'PointerLocation',[cfr/ml cp_tmp(2)]);
             key_test = 'l';
             while ~strcmp(key_test,'u')
-                cp_tmp = get(groot,'PointerLocation');
-                set(fh_scroll,'CurrentPoint',cp_tmp);
-                move_callback(fh_scroll)
-                pause(1/30)
-                key_test = get(gcf,'CurrentCharacter');                
+                try
+                    cp_tmp = get(groot,'PointerLocation');
+                    set(fh_scroll,'CurrentPoint',cp_tmp);
+                    move_callback(fh_scroll)
+                    pause(1/30)
+                    key_test = get(gcf,'CurrentCharacter');
+                catch
+                    close all
+                    return
+                end
             end
         end
         if strcmp(event.Key,'z') || strcmp(event.Key,'x') || strcmp(event.Key,'c')
@@ -351,7 +371,9 @@ end
                     tracest(ind).ishot = true;
                 end
                 save(save_loc,'-append','tracest');
-                scatter_points(cfr);
+                upz = false;
+                ind = already_found(rxpos,rypos,-1);
+                move_callback(fh_img)
             end
         end
         if strcmp(event.Key,'p')
@@ -362,7 +384,9 @@ end
                     tracest(ind).ispair = true;
                 end
                 save(save_loc,'-append','tracest');
-                scatter_points(cfr);
+                upz = false;
+                ind = already_found(rxpos,rypos,-1);
+                move_callback(fh_img)
             end
         end
         if strcmp(event.Key,'delete')
@@ -406,7 +430,11 @@ end
         end
         if strcmp(event.Key,'k')
             mask(mask==bitcmp(0,'uint16')) = 0;
-            save(save_loc,'tracest','mask')
+            if strcmpi(type,'sim')
+                save(save_loc,'tracest','mask')
+            else
+                save(save_loc,'tracest')
+            end
             ntrace = length(tracest);
         end
     end
@@ -485,7 +513,11 @@ end
         mask(mask==bitcmp(0,'uint16')) = 0;
         ntrace = length(tracest);
         scatter_points(cfr);
-        save(save_loc,'tracest','mask')
+        if strcmpi(type,'sim')
+            save(save_loc,'tracest','mask')
+        else
+            save(save_loc,'tracest')
+        end
         ind = 0;
         close(afh)
     end
@@ -638,13 +670,13 @@ end
             end
             timg = double(oimg(floor(oypos-zrad):floor(oypos+zrad),...
                 floor(oxpos-zrad):floor(oxpos+zrad),frame));
-            [int(frame),SNR(frame)] = twoDgaussianFitting_theta(timg,false);
+            [int(frame),SNR(frame)] = twoDgaussianFitting_theta(timg);
             if strcmpi(type,'srrf')
                 timg = double(rimg(floor(rypos-ozrad):floor(rypos+ozrad),...
                     floor(rxpos-ozrad):floor(rxpos+ozrad),frame));
                 timg = interpolate_image(timg);
                 timg = sort(timg,'descend');
-                srrfint(frame) = sum(double(timg(1:500)));
+                srrfint(frame) = sum(double(timg(1:100)));
             end
             if redo
                 tracest(ind).int(tracest(ind).frame==frame) = int(frame);
@@ -661,7 +693,7 @@ end
             iph = plot(int);
         end
     end
-    function [integ, SNR] = twoDgaussianFitting_theta(img, disp)
+    function [integ, SNR] = twoDgaussianFitting_theta(img)
         % c(1) = background
         % c(2) = amplitude
         % c(3) = x center
@@ -679,17 +711,11 @@ end
         up = double([mean(img(:))   1.1*(max(img(:))-min(img(:))) 3*c0(3)/2           3*c0(4)/2           2*pi size(img,2)/4 size(img,1)/4]);
         xdata = double(xdata); ydata = double(ydata); img = double(img);
         gfit = fit([xdata(:), ydata(:)], img(:), F, 'StartPoint', c0, 'Lower', low, 'Upper', up);
-        if disp
-            fh_gauss_fit = figure;
-            plot(gfit, [xdata(:), ydata(:)], img(:));
-            waitfor(fh_gauss_fit,'SelectionType','alt')
-            close(fh_gauss_fit)
-        end
         axes(ah_int_fit_graph)
         plot(gfit, [xdata(:), ydata(:)], img(:));
         c = coeffvalues(gfit);
         SNR = c(2)/c(1);
-        integ = quad2d(gfit,0.5,size(img,1)+.5,0.5,size(img,2)+.5)-c(1)*size(img,1)*size(img,2);
+        integ = quad2d(gfit,0.5,size(img,2)+.5,0.5,size(img,1)+.5)-c(1)*size(img,1)*size(img,2);
     end
     function int_img = interpolate_image(img)
         [xhave, yhave] = meshgrid(1:size(img,2),1:size(img,1));
@@ -840,7 +866,11 @@ end
             'Position',[1/3 0 1/3 .1],...
             'String',['Saved trace ' num2str(spt) '!']);
         mask(mask==bitcmp(0,'uint16')) = 0;
-        save(save_loc,'tracest','mask')
+        if strcmpi(type,'sim')
+            save(save_loc,'tracest','mask')
+        else
+            save(save_loc,'tracest')
+        end
         ntrace = length(tracest);
         pause(.5)
         scatter_points(cfr)

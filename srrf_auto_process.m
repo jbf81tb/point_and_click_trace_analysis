@@ -10,7 +10,7 @@ switch nargin
     case 2
         tmpd = dir(reconmovnm);
         datafol = reconmovnm(1:end-(length(tmpd.name)+1));
-        save_loc = [datafol filesep 'tracest.mat'];
+        save_loc = [datafol filesep 'sm_tracest.mat'];
     case 3
         save_loc = varargin{1};
 end
@@ -22,7 +22,7 @@ for fr = 1:ml
     rimg(:,:,fr) = imread(reconmovnm,fr);
     oimg(:,:,fr) = imread(origmovnm,fr);
 end
-zrad = 10;
+zrad = 5;
 load_var = load(save_loc);
 tracest = load_var.tracest;
 disp(['Loaded file ' save_loc])
@@ -41,7 +41,7 @@ for ind = 1:ntrace
                 floor(xpos-zrad):floor(xpos+zrad),frame));
             timg = interpolate_image(timg);
             timg = sort(timg,'descend');
-            tracest(ind).srrfint(ifr) = sum(double(timg(1:500)));
+            tracest(ind).srrfint(ifr) = sum(double(timg(1:100)));
         end
     end
 end
