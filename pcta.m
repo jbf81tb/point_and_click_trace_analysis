@@ -32,7 +32,7 @@ oxpos = NaN; oypos = NaN;
 set(groot,'units','pixels');
 screen = get(groot,'ScreenSize');
 set(groot,'units','normalized');
-rimg = zeros([ss ml],'uint16');
+rimg = zeros([ss ml],'single');
 oimg = zeros([ss ml],'uint16');
 for fr = 1:ml
     rimg(:,:,fr) = imread(reconmovnm,fr);
@@ -51,7 +51,7 @@ zimgx = zimgy*screen(4)/screen(3);
 graphy = imgy-2*zimgy;
 graphx = (1-imgx)/2;
 cfr = 1;
-ozrad = 5;
+ozrad = 8;
 zrad = ozrad;
 if exist(save_loc,'file')
     load_var = load(save_loc);
@@ -60,6 +60,7 @@ if exist(save_loc,'file')
         mask = load_var.mask;
     else
         mask = zeros([ss ml],'uint16');
+        save(save_loc,'tracest','mask');
     end
     disp(['Loaded file ' save_loc])
     ntrace = length(tracest);
@@ -67,7 +68,9 @@ else
     tracest = struct('frame',[],'xpos',[],'ypos',[],'int',[],'area',[],'ishot',false,'ispair',false);
     ntrace = 0;
     mask = zeros([ss ml],'uint16');
+    save(save_loc,'tracest','mask');
 end
+mh = matfile(save_loc,'Writable',true);
 
 fh_img = figure(...
     'units','normalized',...
@@ -236,27 +239,18 @@ while true
         try
             if ~isempty(tracest(ntrace+1).frame)
                 mask(mask==bitcmp(0,'uint16')) = 0;
-                if strcmpi(type,'sim')
-                    save(save_loc,'tracest','mask')
-                else
-                    save(save_loc,'tracest')
-                end
+                mh.mask = mask;
+                save(save_loc,'tracest','-append')
             else
                 tracest(ntrace+1) = [];
                 mask(mask==bitcmp(0,'uint16')) = 0;
-                if strcmpi(type,'sim')
-                    save(save_loc,'tracest','mask')
-                else
-                    save(save_loc,'tracest')
-                end
+                mh.mask = mask;
+                save(save_loc,'tracest','-append')
             end
         catch
             mask(mask==bitcmp(0,'uint16')) = 0;
-            if strcmpi(type,'sim')
-                save(save_loc,'tracest','mask')
-            else
-                save(save_loc,'tracest')
-            end
+            mh.mask = mask;
+            save(save_loc,'tracest','-append')
         end
         close all
         return;
@@ -370,7 +364,7 @@ end
                 else
                     tracest(ind).ishot = true;
                 end
-                save(save_loc,'-append','tracest');
+                save(save_loc,'tracest','-append');
                 upz = false;
                 ind = already_found(rxpos,rypos,-1);
                 move_callback(fh_img)
@@ -383,7 +377,7 @@ end
                 else
                     tracest(ind).ispair = true;
                 end
-                save(save_loc,'-append','tracest');
+                save(save_loc,'tracest','-append');
                 upz = false;
                 ind = already_found(rxpos,rypos,-1);
                 move_callback(fh_img)
@@ -430,11 +424,8 @@ end
         end
         if strcmp(event.Key,'k')
             mask(mask==bitcmp(0,'uint16')) = 0;
-            if strcmpi(type,'sim')
-                save(save_loc,'tracest','mask')
-            else
-                save(save_loc,'tracest')
-            end
+            mh.mask = mask;
+            save(save_loc,'tracest','-append')
             ntrace = length(tracest);
         end
     end
@@ -513,11 +504,8 @@ end
         mask(mask==bitcmp(0,'uint16')) = 0;
         ntrace = length(tracest);
         scatter_points(cfr);
-        if strcmpi(type,'sim')
-            save(save_loc,'tracest','mask')
-        else
-            save(save_loc,'tracest')
-        end
+        mh.mask = mask;
+        save(save_loc,'tracest','-append')
         ind = 0;
         close(afh)
     end
@@ -626,7 +614,7 @@ end
                                        floor(rxpos-zrad):floor(rxpos+zrad),frame)>0));
             if redo
                 tracest(ind).area(tracest(ind).frame==frame) = area(frame);
-                save(save_loc,'-append','tracest')
+                save(save_loc,'tracest','-append')
             end
         end
         if disp
@@ -684,7 +672,7 @@ end
                 if strcmpi(type,'srrf')
                     tracest(ind).srrfint(tracest(ind).frame==frame) = srrfint(frame);
                 end
-                save(save_loc,'-append','tracest')
+                save(save_loc,'tracest','-append')
             end
         end
         if disp
@@ -799,7 +787,7 @@ end
         zoom_in;
         mod = 0;
         if ind>0
-            save(save_loc,'-append','tracest')
+            save(save_loc,'tracest','-append')
         end
     end
     function ind = already_found(xp,yp,frame)
@@ -866,11 +854,13 @@ end
             'Position',[1/3 0 1/3 .1],...
             'String',['Saved trace ' num2str(spt) '!']);
         mask(mask==bitcmp(0,'uint16')) = 0;
-        if strcmpi(type,'sim')
-            save(save_loc,'tracest','mask')
-        else
-            save(save_loc,'tracest')
-        end
+        mh.mask(floor(min(ypos(ff:lf))):ceil(max(ypos(ff:lf))),...
+            floor(min(xpos(ff:lf))):ceil(max(xpos(ff:lf))),...
+            ff:lf) = ...
+                mask(floor(min(ypos(ff:lf))):ceil(max(ypos(ff:lf))),...
+                floor(min(xpos(ff:lf))):ceil(max(xpos(ff:lf))),...
+                ff:lf);
+        save(save_loc,'tracest','-append')
         ntrace = length(tracest);
         pause(.5)
         scatter_points(cfr)
