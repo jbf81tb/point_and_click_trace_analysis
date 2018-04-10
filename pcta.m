@@ -14,30 +14,52 @@ switch nargin
         datafol = reconmovnm(1:end-(length(tmpd.name)+1));
         save_loc = [datafol filesep 'tracest.mat'];
         type = 'sim';
+        ftype = 'tif';
     case 3
         save_loc = varargin{1};
         type = 'sim';
+        ftype = 'tif';
     case 4
         save_loc = varargin{1};
         type = varargin{2};
+        ftype = 'tif';
+    case 5
+        save_loc = varargin{1};
+        type = varargin{2};
+        ftype = varargin{3};
 end
 global nsh gsh bsh afh
 mod = [0,0,0];
-ml = length(imfinfo(reconmovnm));
-ff = 1; lf = ml;
 ind = 0;
-ss = size(imread(reconmovnm));
 rxpos = NaN; rypos = NaN;
 oxpos = NaN; oypos = NaN;
 set(groot,'units','pixels');
 screen = get(groot,'ScreenSize');
 set(groot,'units','normalized');
-rimg = zeros([ss ml],'single');
-oimg = zeros([ss ml],'uint16');
-for fr = 1:ml
-    rimg(:,:,fr) = imread(reconmovnm,fr);
-    oimg(:,:,fr) = imread(origmovnm,fr);
+if strcmp(ftype,'tif')
+    ml = length(imfinfo(reconmovnm));
+    ff = 1; lf = ml;
+    ss = size(imread(reconmovnm));
+    rimg = zeros([ss ml],'single');
+    oimg = zeros([ss ml],'uint16');
+    for fr = 1:ml
+        rimg(:,:,fr) = imread(reconmovnm,fr);
+        oimg(:,:,fr) = imread(origmovnm,fr);
+    end
+elseif strcmp(ftype,'mrc')
+    [rimg,s] = ReadMRC(reconmovnm);
+    ss = [s.ny, s.nx];
+    ml = s.nz;
+    oimg = zeros([ss ml],'uint16');
+    placeholder = ReadMRC(origmovnm);
+    ti = 1;
+    while ti<=ml
+        oimg(:,:,ti) = imresize(mean(placeholder(:,:,1:9),3),2,'bicubic');
+        ti = ti+1;
+        placeholder(:,:,1:9) = [];
+    end
 end
+        
 simg = sort(rimg(:),'ascend');
 minrc = simg(ceil(0.0001*length(simg))); 
 medrc = simg(ceil(0.4*length(simg))); 
