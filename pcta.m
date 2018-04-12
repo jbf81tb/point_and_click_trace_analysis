@@ -29,7 +29,7 @@ switch nargin
         ftype = varargin{3};
 end
 global nsh gsh bsh afh
-mod = [0,0,0];
+mod = 0;
 ind = 0;
 rxpos = NaN; rypos = NaN;
 oxpos = NaN; oypos = NaN;
@@ -534,7 +534,7 @@ end
 
     function zoom_in
         persistent lh
-        if all(mod==0)
+        if mod==0
             zp = fh_img.CurrentPoint;
             tmpx = zp(1)*ss(2)+.5;
             tmpy = ss(1)-zp(2)*ss(1)+.5;
