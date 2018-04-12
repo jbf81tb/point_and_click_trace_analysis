@@ -32,6 +32,7 @@ global nsh gsh bsh afh
 ind = 0;
 rxpos = NaN; rypos = NaN;
 oxpos = NaN; oypos = NaN;
+zoomQuad = true(2);
 set(groot,'units','pixels');
 screen = get(groot,'ScreenSize');
 set(groot,'units','normalized');
@@ -105,7 +106,9 @@ fh_img = figure(...
     'KeyPressFcn',@key_fun);
 ah_img = axes('units','normalized',...
     'position',[0 0 1 1]);
-imagesc(rimg(:,:,cfr),[medrc maxrc])
+image(ah_img,rimg(:,:,cfr),'CDataMapping','scaled')
+set(ah_img,'CLim',[medrc maxrc],...
+            'Xtick',[],'YTick',[]);
 scatter_points(cfr)
 axis equal
 axis off
@@ -221,8 +224,13 @@ while true
         waitfor(fh_img,'SelectionType','normal');
         [area, int, SNR, srrfint, xpos, ypos] = deal(zeros(1,ml));
         zp = fh_img.CurrentPoint;
-        rxpos = ss(2)*zp(1)+.5;
-        rypos = ss(1)*(1-zp(2))+.5;
+        if all(zoomQuad(:))
+            rxpos = ss(2)*zp(1)+.5;
+            rypos = ss(1)*(1-zp(2))+.5;
+        else
+            rxpos = ss(2)/2*zp(1)+.5+ss(2)*sum(zoomQuad(:,2))/2;
+            rypos = ss(1)/2*(1-zp(2))+.5+ss(1)*sum(zoomQuad(2,:))/2;
+        end
         if rxpos>zrad && rxpos<=ss(2)-zrad && rypos>zrad && rypos<=ss(1)-zrad
             [rxpos, rypos] = cofint(rimg,rxpos,rypos,cfr);
             xpos(cfr) = rxpos;
@@ -288,11 +296,16 @@ end
         elseif cfr>ml
             cfr = ml;
         end
-        axes(ah_img)
-        imagesc(rimg(:,:,cfr),[medrc maxrc]);
+        image(ah_img,rimg(:,:,cfr),'CDataMapping','scaled');
         scatter_points(cfr)
         axis off
         axis equal
+        set(ah_img,...
+            'XLim',ceil([0, ss(2)]*(sum(zoomQuad(:))/6+1/3))+~any(zoomQuad(:,1))*floor(ss(2)/2)+.5,...
+            'YLim',ceil([0, ss(1)]*(sum(zoomQuad(:))/6+1/3))+~any(zoomQuad(1,:))*floor(ss(1)/2)+.5,...
+            'CLim',[medrc maxrc],...
+            'Xtick',[],'YTick',[]);
+%         drawnow;
         if upz
             zoom_in;
         end
@@ -361,10 +374,10 @@ end
                 y(end+1) = tracest(i).ypos(frind);
                 num{end+1} = num2str(i);
             end
-            axes(ah_img)
-            hold on
-            nsh = text(x,y,num,'Color',[.7 0 0],'HorizontalAlignment','center');
-            hold off
+            set(ah_img,'Nextplot','add')
+            nsh = text(ah_img,x,y,num,'Color',[.7 0 0],'HorizontalAlignment','center');
+            set(ah_img,'Nextplot','replace')
+%             drawnow;
         end
         if strcmp(event.Key,'f')
             upz = true;
@@ -438,6 +451,39 @@ end
             mh.mask = mask;
             save(save_loc,'tracest','-append')
             ntrace = length(tracest);
+        end
+        if strcmp(event.Key,'4') || strcmp(event.Key,'numpad4')
+            quad = 0;
+            while ~any(quad==1:5)
+                dh_goto = dialog(...
+                    'Units','Normalized',...
+                    'Position',[.4 .4 .2 .2],...
+                    'Name','Which quad?');
+                uicontrol(...
+                    'Parent',dh_goto,...
+                    'Style','text',...
+                    'Units','Normalized',...
+                    'Position', [.3 .6 .4 .3],...
+                    'String',{'Which quadrant to zoom in on?','1|3','2|4','5 for full screen'});
+                qbox = uicontrol(...
+                    'Parent',dh_goto,...
+                    'Style','edit',...
+                    'Units','Normalized',...
+                    'Position',[.3 .3 .4 .2],...
+                    'Callback','set(gcf,''Windowstyle'',''normal'',''Visible'',''off'')',...
+                    'Selected','on');
+                uicontrol(qbox)
+                waitfor(dh_goto,'Visible','off')
+                quad = str2double(qbox.String);
+                close(dh_goto)
+            end
+            if quad<5
+                zoomQuad = false(2);
+                zoomQuad(quad)=true;
+            elseif quad==5
+                zoomQuad = true(2);
+            end
+            move_callback(fh_img)
         end
     end
     function goto_trace(varargin)
@@ -539,14 +585,14 @@ end
                 floor(oxpos-zrad):floor(oxpos+zrad),cfr);
             imagesc(oimgc,[minoc maxoc]);
             
-            axes(ah_img)
-            hold on
+            set(ah_img,'Nextplot','add')
             if exist('lh','var'), delete(lh); end
-            lh = line([rxpos-zrad rxpos+zrad rxpos+zrad rxpos-zrad rxpos-zrad],...
+            lh = line(ah_img,[rxpos-zrad rxpos+zrad rxpos+zrad rxpos-zrad rxpos-zrad],...
                 [rypos-zrad rypos-zrad rypos+zrad rypos+zrad rypos-zrad],...
                 'color','r','linewidth',1);
             axis off
-            hold off
+            set(ah_img,'Nextplot','replace')
+%             drawnow;
             mask_clip = mask(floor(rypos-zrad):floor(rypos+zrad),floor(rxpos-zrad):floor(rxpos+zrad),cfr);
             if ~any(reshape(mask_clip>0,[],1))
                 tmp = edge(rimg(floor(rypos-zrad):floor(rypos+zrad),floor(rxpos-zrad):floor(rxpos+zrad),cfr),'canny',[.5 .9])>0;
@@ -725,11 +771,11 @@ end
                 yg(end+1) = tracest(i).ypos(frind);
             end
         end
-        axes(ah_img)
-        hold on
-        bsh = scatter(xb,yb,100,'r','x');
-        gsh = scatter(xg,yg,100,'g','o');
-        hold off
+        set(ah_img,'Nextplot','add')
+        bsh = scatter(ah_img,xb,yb,100,'r','x');
+        gsh = scatter(ah_img,xg,yg,100,'g','o');
+        set(ah_img,'Nextplot','replace')
+%         drawnow;
     end
     function cf_ball
         persistent abh ibh
@@ -745,7 +791,7 @@ end
         hold off
     end
     function frame_line(src,loc,col)
-        axes(src)
+%         axes(src)
         tmpch = get(src,'Children');
         for i = 1:length(tmpch)
             if strcmp(tmpch(i).Type,'line')
@@ -755,7 +801,7 @@ end
             end
         end
         hold on
-        line([loc loc],[.5 1.5],'linewidth',1,'color',col);
+        line(src,[loc loc],[.5 1.5],'linewidth',1,'color',col);
         hold off
     end
     function select_mask(src,~)
