@@ -29,7 +29,6 @@ switch nargin
         ftype = varargin{3};
 end
 global nsh gsh bsh afh
-mod = [0,0,0];
 ind = 0;
 rxpos = NaN; rypos = NaN;
 oxpos = NaN; oypos = NaN;
@@ -301,9 +300,7 @@ end
         axis off
         axis equal
         if upz
-            if src~=fh_img, mod = -inf; end
             zoom_in;
-            mod = 0;
         end
         frame_line(ah_scroll,cfr,[.8 .8 .8])
     end
@@ -349,19 +346,15 @@ end
             end
         end
         if strcmp(event.Key,'z') || strcmp(event.Key,'x') || strcmp(event.Key,'c')
-            if strcmp(event.Key,'z'), mod = -1; end
-            if strcmp(event.Key,'x'), mod =  1; end
-            if strcmp(event.Key,'c'), mod = ozrad-zrad; end
-            zrad = zrad+mod;
+            if strcmp(event.Key,'z'), zrad = zrad-1; end
+            if strcmp(event.Key,'x'), zrad = zrad+1; end
+            if strcmp(event.Key,'c'), zrad = ozrad; end
             zoom_in;
-            mod = 0;
         end
         if strcmp(event.Key,'a') || strcmp(event.Key,'s')
-            if strcmp(event.Key,'a'), mod = -1; end
-            if strcmp(event.Key,'s'), mod =  1; end
-            cfr = cfr+mod;
+            if strcmp(event.Key,'a'), cfr = cfr-1; end
+            if strcmp(event.Key,'s'), cfr = cfr+1; end
             move_callback(fh_img);
-            mod = 0;
         end
         if strcmp(event.Key,'n')
             if exist('gsh','var'), delete(gsh); end
@@ -380,10 +373,8 @@ end
             hold off
         end
         if strcmp(event.Key,'f')
-            mod = -inf;
             upz = true;
             zoom_in
-            mod = 0;
         end
         if strcmp(event.Key,'h')
             if ind>0
@@ -443,10 +434,8 @@ end
             if strcmp(event.Key,'g')
                 goto_trace;
             elseif strcmp(event.Key,'b')
-                mod = -inf;
                 upz = true;
                 zoom_in
-                mod = 0;
                 goto_trace(ind+1);
             end
         end
@@ -521,9 +510,7 @@ end
             slf;
             cfr = tcfr;
             upz = true;
-            mod = -inf;
             move_callback(fh_img);
-            mod = 0;
         end
     end
     function delete_trace(~,~)
@@ -540,21 +527,10 @@ end
 
     function zoom_in
         persistent lh
-        if all(mod==0)
-            zp = fh_img.CurrentPoint;
-            tmpx = zp(1)*ss(2)+.5;
-            tmpy = ss(1)-zp(2)*ss(1)+.5;
-            if tmpx>zrad && tmpx<=ss(2)-zrad && tmpy>zrad && tmpy<=ss(1)-zrad
-                [rxpos, rypos] = cofint(rimg,tmpx,tmpy,cfr);
-                xpos(cfr) = rxpos;
-                ypos(cfr) = rypos;
-            end
-        else
-            if rxpos>zrad && rxpos<=ss(2)-zrad && rypos>zrad && rypos<=ss(1)-zrad
-                [rxpos, rypos] = cofint(rimg,rxpos,rypos,cfr);
-                xpos(cfr) = rxpos;
-                ypos(cfr) = rypos;
-            end
+        if rxpos>zrad && rxpos<=ss(2)-zrad && rypos>zrad && rypos<=ss(1)-zrad
+            [rxpos, rypos] = cofint(rimg,rxpos,rypos,cfr);
+            xpos(cfr) = rxpos;
+            ypos(cfr) = rypos;
         end
         ind = already_found(rxpos,rypos,cfr);
         if rxpos>zrad && rxpos<=ss(2)-zrad && rypos>zrad && rypos<=ss(1)-zrad
@@ -811,9 +787,7 @@ end
                     sum(sum(mask(floor(rypos-zrad):floor(rypos+zrad),floor(rxpos-zrad):floor(rxpos+zrad),cfr)>0));
             end
         end
-        mod = -inf;
         zoom_in;
-        mod = 0;
         if ind>0
             save(save_loc,'tracest','-append')
         end
