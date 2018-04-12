@@ -33,6 +33,7 @@ mod = [0,0,0];
 ind = 0;
 rxpos = NaN; rypos = NaN;
 oxpos = NaN; oypos = NaN;
+zoomQuad = true(2);
 set(groot,'units','pixels');
 screen = get(groot,'ScreenSize');
 set(groot,'units','normalized');
@@ -222,8 +223,13 @@ while true
         waitfor(fh_img,'SelectionType','normal');
         [area, int, SNR, srrfint, xpos, ypos] = deal(zeros(1,ml));
         zp = fh_img.CurrentPoint;
-        rxpos = ss(2)*zp(1)+.5;
-        rypos = ss(1)*(1-zp(2))+.5;
+        if all(zoomQuad(:))
+            rxpos = ss(2)*zp(1)+.5;
+            rypos = ss(1)*(1-zp(2))+.5;
+        else
+            rxpos = ss(2)/2*zp(1)+.5+ss(2)*sum(zoomQuad(:,2))/2;
+            rypos = ss(1)/2*(1-zp(2))+.5+ss(1)*sum(zoomQuad(2,:))/2;
+        end
         if rxpos>zrad && rxpos<=ss(2)-zrad && rypos>zrad && rypos<=ss(1)-zrad
             [rxpos, rypos] = cofint(rimg,rxpos,rypos,cfr);
             xpos(cfr) = rxpos;
