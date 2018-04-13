@@ -108,7 +108,7 @@ ah_img = axes('units','normalized',...
     'position',[0 0 1 1]);
 image(ah_img,rimg(:,:,cfr),'CDataMapping','scaled')
 set(ah_img,'CLim',[medrc maxrc],...
-            'Xtick',[],'YTick',[]);
+           'Xtick',[],'YTick',[]);
 scatter_points(cfr)
 
 fh_scroll = figure(...
@@ -727,7 +727,6 @@ end
         int_img = griddata(xhave(:),yhave(:),double(img(:)),xwant,ywant,'v4');
     end
     function scatter_points(frame)
-        if exist('nsh','var'), delete(nsh); end
         if exist('bsh','var'), delete(bsh); end
         if exist('gsh','var'), delete(gsh); end
         xb = []; xg = [];
@@ -746,6 +745,8 @@ end
         set(ah_img,'Nextplot','add')
         bsh = scatter(ah_img,xb,yb,100,'r','x');
         gsh = scatter(ah_img,xg,yg,100,'g','o');
+        line(ah_img,[ss(2)/2 ss(2)/2],[0 ss(1)],'color',[.3 .3 .3],'linewidth',.5)
+        line(ah_img,[0 ss(2)],[ss(1)/2 ss(1)/2],'color',[.3 .3 .3],'linewidth',.5)
         set(ah_img,'Nextplot','replace')
     end
     function cf_ball
