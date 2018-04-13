@@ -110,8 +110,6 @@ image(ah_img,rimg(:,:,cfr),'CDataMapping','scaled')
 set(ah_img,'CLim',[medrc maxrc],...
             'Xtick',[],'YTick',[]);
 scatter_points(cfr)
-axis equal
-axis off
 
 fh_scroll = figure(...
     'units','normalized',...
@@ -127,7 +125,7 @@ fh_scroll = figure(...
 ah_scroll = axes('units','normalized','Position',[0 0 1 1]);
 imagesc(ah_scroll,1:ml)
 colormap('cool')
-axis off
+set(ah_scroll,'XTick',[],'YTick',[])
 
 figure(...
     'units','normalized',...
@@ -566,16 +564,16 @@ end
         end
         ind = already_found(rxpos,rypos,cfr);
         if rxpos>zrad && rxpos<=ss(2)-zrad && rypos>zrad && rypos<=ss(1)-zrad
-            axes(ah_zoom_img)
             zimg = rimg(floor(rypos-zrad):floor(rypos+zrad),...
                 floor(rxpos-zrad):floor(rxpos+zrad),cfr);
-            imagesc(zimg,[minrc maxrc]);
+            image(ah_zoom_img,zimg,'CDataMapping','scaled');
+            set(ah_zoom_img,'CLim',[minrc maxrc]);
             
             [oxpos, oypos] = cofint(oimg,rxpos,rypos,cfr);
-            axes(ah_orig_img)
             oimgc = oimg(floor(oypos-zrad):floor(oypos+zrad),...
                 floor(oxpos-zrad):floor(oxpos+zrad),cfr);
-            imagesc(oimgc,[minoc maxoc]);
+            image(ah_orig_img,oimgc,'CDataMapping','scaled');
+            set(ah_orig_img,'CLim',[minoc maxoc]);
             
             set(ah_img,'Nextplot','add')
             if exist('lh','var'), delete(lh); end
@@ -603,15 +601,13 @@ end
     end
     function overlay_mask
         persistent msh
-        axes(ah_zoom_img)
         delete(msh)
-        hold on
+        set(ah_zoom_img,'NextPlot','add')
         tmpmask = mask(floor(rypos-zrad):floor(rypos+zrad),...
             floor(rxpos-zrad):floor(rxpos+zrad),cfr);
         [iy,ix] = find(tmpmask);
         msh = scatter(ah_zoom_img,ix,iy,50,[1 0 1],'linewidth',1);
-        axis off
-        hold off
+        set(ah_zoom_img,'NextPlot','replace','XTick',[],'YTick',[])
     end
     function [cx, cy] = cofint(img,tmpx,tmpy,frame)
         tmpimg = double(img(floor(tmpy-zrad):floor(tmpy+zrad),...
@@ -653,9 +649,8 @@ end
             end
         end
         if disp
-            axes(ah_area_graph)
             if exist('aph','var'), delete(aph); end
-            aph = plot(area);
+            aph = plot(ah_area_graph,area);
         end
     end
     function update_int(frame,disp)
@@ -711,9 +706,8 @@ end
             end
         end
         if disp
-            axes(ah_int_graph)
             if exist('iph','var'), delete(iph); end
-            iph = plot(int);
+            iph = plot(ah_int_graph,int);
         end
     end
     function [integ, SNR] = twoDgaussianFitting_theta(img)
@@ -734,8 +728,7 @@ end
         up = double([mean(img(:))   1.1*(max(img(:))-min(img(:))) 3*c0(3)/2           3*c0(4)/2           2*pi size(img,2)/4 size(img,1)/4]);
         xdata = double(xdata); ydata = double(ydata); img = double(img);
         gfit = fit([xdata(:), ydata(:)], img(:), F, 'StartPoint', c0, 'Lower', low, 'Upper', up);
-        axes(ah_int_fit_graph)
-        plot(gfit, [xdata(:), ydata(:)], img(:));
+        plot(gfit, [xdata(:), ydata(:)], img(:),'Parent',ah_int_fit_graph);
         c = coeffvalues(gfit);
         SNR = c(2)/c(1);
         integ = quad2d(gfit,0.5,size(img,2)+.5,0.5,size(img,1)+.5)-c(1)*size(img,1)*size(img,2);
@@ -769,16 +762,14 @@ end
     end
     function cf_ball
         persistent abh ibh
-        axes(ah_area_graph)
         if exist('abh','var'), delete(abh); end
-        hold on
-        abh = plot(cfr,area(cfr),'ro');
-        hold off
-        axes(ah_int_graph)
+        set(ah_area_graph,'NextPlot','add')
+        abh = plot(ah_area_graph,cfr,area(cfr),'ro');
+        set(ah_area_graph,'NextPlot','replace')
         if exist('ibh','var'), delete(ibh); end
-        hold on
-        ibh = plot(cfr,int(cfr),'ro');
-        hold off
+        set(ah_int_graph,'NextPlot','add')
+        ibh = plot(ah_int_graph,cfr,int(cfr),'ro');
+        set(ah_int_graph,'NextPlot','replace')
     end
     function frame_line(src,loc,col)
         tmpch = get(src,'Children');
