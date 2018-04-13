@@ -82,7 +82,7 @@ if exist(save_loc,'file')
         mask = load_var.mask;
     else
         mask = zeros([ss ml],'uint16');
-        save(save_loc,'tracest','mask');
+        save(save_loc,'tracest','mask','-v7.3');
     end
     disp(['Loaded file ' save_loc])
     ntrace = length(tracest);
@@ -90,7 +90,7 @@ else
     tracest = struct('frame',[],'xpos',[],'ypos',[],'int',[],'area',[],'ishot',false,'ispair',false);
     ntrace = 0;
     mask = zeros([ss ml],'uint16');
-    save(save_loc,'tracest','mask');
+    save(save_loc,'tracest','mask','-v7.3');
 end
 mh = matfile(save_loc,'Writable',true);
 
@@ -258,22 +258,10 @@ while true
             close all
             rethrow(ME)
         end
-        try
-            if ~isempty(tracest(ntrace+1).frame)
-                mask(mask==bitcmp(0,'uint16')) = 0;
-                mh.mask = mask;
-                save(save_loc,'tracest','-append')
-            else
-                tracest(ntrace+1) = [];
-                mask(mask==bitcmp(0,'uint16')) = 0;
-                mh.mask = mask;
-                save(save_loc,'tracest','-append')
-            end
-        catch
-            mask(mask==bitcmp(0,'uint16')) = 0;
-            mh.mask = mask;
-            save(save_loc,'tracest','-append')
-        end
+        try tracest(ntrace+1) = []; catch, end
+        mask(mask==bitcmp(0,'uint16')) = 0;
+        mh.mask = mask;
+        mh.tracest = tracest;
         close all
         return;
     end
@@ -382,7 +370,7 @@ end
                 end
                 save(save_loc,'tracest','-append');
                 upz = false;
-                ind = already_found(rxpos,rypos,-1);
+                ind = 0;
                 move_callback(fh_img)
             end
         end
@@ -395,7 +383,7 @@ end
                 end
                 save(save_loc,'tracest','-append');
                 upz = false;
-                ind = already_found(rxpos,rypos,-1);
+                ind = 0;
                 move_callback(fh_img)
             end
         end
@@ -424,7 +412,7 @@ end
         end
         if strcmp(event.Key,'backspace')
             upz = false;
-            ind = already_found(rxpos,rypos,-1);
+            ind = 0;
             move_callback(fh_img)
         end
         if strcmp(event.Key,'g') || strcmp(event.Key,'b')
@@ -439,7 +427,7 @@ end
         if strcmp(event.Key,'k')
             mask(mask==bitcmp(0,'uint16')) = 0;
             mh.mask = mask;
-            save(save_loc,'tracest','-append')
+            mh.tracest = tracest;
             ntrace = length(tracest);
         end
         if strcmp(event.Key,'4') || strcmp(event.Key,'numpad4')
@@ -550,7 +538,7 @@ end
         ntrace = length(tracest);
         scatter_points(cfr);
         mh.mask = mask;
-        save(save_loc,'tracest','-append')
+        mh.tracest = tracest;
         ind = 0;
         close(afh)
     end
@@ -580,7 +568,6 @@ end
             lh = line(ah_img,[rxpos-zrad rxpos+zrad rxpos+zrad rxpos-zrad rxpos-zrad],...
                 [rypos-zrad rypos-zrad rypos+zrad rypos+zrad rypos-zrad],...
                 'color','r','linewidth',1);
-%             set(ah_img,'XTick',[],'YTick',[])
             set(ah_img,'Nextplot','replace')
             mask_clip = mask(floor(rypos-zrad):floor(rypos+zrad),floor(rxpos-zrad):floor(rxpos+zrad),cfr);
             if ~any(reshape(mask_clip>0,[],1))
@@ -645,7 +632,7 @@ end
                                        floor(rxpos-zrad):floor(rxpos+zrad),frame)>0));
             if redo
                 tracest(ind).area(tracest(ind).frame==frame) = area(frame);
-                save(save_loc,'tracest','-append')
+                mh.tracest=tracest;
             end
         end
         if disp
@@ -702,7 +689,7 @@ end
                 if strcmpi(type,'srrf')
                     tracest(ind).srrfint(tracest(ind).frame==frame) = srrfint(frame);
                 end
-                save(save_loc,'tracest','-append')
+                mh.tracest=tracest;
             end
         end
         if disp
@@ -810,7 +797,7 @@ end
         end
         zoom_in;
         if ind>0
-            save(save_loc,'tracest','-append')
+            mh.tracest=tracest;
         end
     end
     function ind = already_found(xp,yp,frame)
@@ -883,12 +870,12 @@ end
                 mask(floor(min(ypos(ff:lf))):ceil(max(ypos(ff:lf))),...
                 floor(min(xpos(ff:lf))):ceil(max(xpos(ff:lf))),...
                 ff:lf);
-        save(save_loc,'tracest','-append')
+        mh.tracest=tracest;
         ntrace = length(tracest);
         pause(.5)
         scatter_points(cfr)
         upz = false;
-        ind = already_found(rxpos,rypos,-1);
+        ind = 0;
         delete(uih_saved)
     end
 end
