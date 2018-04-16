@@ -744,7 +744,7 @@ end
         end
         set(ah_img,'Nextplot','add')
         bsh = scatter(ah_img,xb,yb,100,'r','x');
-        gsh = scatter(ah_img,xg,yg,100,'g','o');
+        gsh = scatter(ah_img,xg,yg,150,'g','o');
         line(ah_img,[ss(2)/2 ss(2)/2],[0 ss(1)],'color',[.3 .3 .3],'linewidth',.5)
         line(ah_img,[0 ss(2)],[ss(1)/2 ss(1)/2],'color',[.3 .3 .3],'linewidth',.5)
         set(ah_img,'Nextplot','replace')
@@ -810,7 +810,7 @@ end
             if isempty(frind), continue; end
             dist = sqrt((tracest(i).xpos(frind)-xp)^2+...
                 (tracest(i).ypos(frind)-yp)^2);
-            if dist<ozrad
+            if dist<zrad
                 ind = i;
                 uih_found = uicontrol('Parent',fh_text,...
                     'Style','Text',...
