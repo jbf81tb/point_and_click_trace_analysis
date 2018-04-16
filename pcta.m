@@ -370,7 +370,7 @@ end
                 end
                 mh.tracest = tracest;
                 upz = false;
-                ind = 0;
+                ind = already_found(rxpos,rypos,-1); %clear ind text
                 move_callback(fh_img)
             end
         end
@@ -383,7 +383,7 @@ end
                 end
                 mh.tracest = tracest;
                 upz = false;
-                ind = 0;
+                ind = already_found(rxpos,rypos,-1); %clear ind text
                 move_callback(fh_img)
             end
         end
@@ -412,7 +412,7 @@ end
         end
         if strcmp(event.Key,'backspace')
             upz = false;
-            ind = 0;
+            ind = already_found(rxpos,rypos,-1); %clear ind text
             move_callback(fh_img)
         end
         if strcmp(event.Key,'g') || strcmp(event.Key,'b')
@@ -539,7 +539,7 @@ end
         scatter_points(cfr);
         mh.mask = mask;
         mh.tracest = tracest;
-        ind = 0;
+        ind = already_found(rxpos,rypos,-1); %clear ind text
         close(afh)
     end
 
@@ -876,7 +876,7 @@ end
         pause(.5)
         scatter_points(cfr)
         upz = false;
-        ind = 0;
+        ind = already_found(rxpos,rypos,-1); %clear ind text
         delete(uih_saved)
     end
 end
