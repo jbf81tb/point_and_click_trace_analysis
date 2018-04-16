@@ -368,7 +368,7 @@ end
                 else
                     tracest(ind).ishot = true;
                 end
-                save(save_loc,'tracest','-append');
+                mh.tracest = tracest;
                 upz = false;
                 ind = 0;
                 move_callback(fh_img)
@@ -381,7 +381,7 @@ end
                 else
                     tracest(ind).ispair = true;
                 end
-                save(save_loc,'tracest','-append');
+                mh.tracest = tracest;
                 upz = false;
                 ind = 0;
                 move_callback(fh_img)
