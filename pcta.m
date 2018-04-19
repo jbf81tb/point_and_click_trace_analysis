@@ -563,11 +563,17 @@ end
             image(ah_zoom_img,zimg,'CDataMapping','scaled');
             set(ah_zoom_img,'CLim',[minrc maxrc]);
             
+%             [oxpos, oypos] = cofint(oimg,rxpos,rypos,cfr);
+%             oimgc = oimg(floor(oypos-zrad):floor(oypos+zrad),...
+%                 floor(oxpos-zrad):floor(oxpos+zrad),cfr);
+%             image(ah_orig_img,oimgc,'CDataMapping','scaled');
+%             set(ah_orig_img,'CLim',[minoc maxoc]);
+
             [oxpos, oypos] = cofint(oimg,rxpos,rypos,cfr);
-            oimgc = oimg(floor(oypos-zrad):floor(oypos+zrad),...
-                floor(oxpos-zrad):floor(oxpos+zrad),cfr);
+            oimgc = rimg(floor(rypos-3*ozrad):floor(rypos+3*ozrad),...
+                floor(rxpos-3*ozrad):floor(rxpos+3*ozrad),cfr);
             image(ah_orig_img,oimgc,'CDataMapping','scaled');
-            set(ah_orig_img,'CLim',[minoc maxoc]);
+            set(ah_orig_img,'CLim',[minrc maxrc]);
             
             set(ah_img,'Nextplot','add')
             if exist('lh','var'), delete(lh); end
