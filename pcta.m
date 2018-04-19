@@ -64,7 +64,7 @@ simg = sort(rimg(:),'ascend');
 minrc = simg(ceil(0.0001*length(simg)));
 medrc = simg(ceil(0.4*length(simg)));
 maxrc = simg(ceil(0.9999*length(simg)));
-minoc = min(oimg(:)); maxoc = max(oimg(:));
+% minoc = min(oimg(:)); maxoc = max(oimg(:));
 imgy = .95;
 imgx = ss(2)/ss(1)*imgy*screen(4)/screen(3);
 close all
@@ -73,7 +73,7 @@ zimgx = zimgy*screen(4)/screen(3);
 graphy = imgy-2*zimgy;
 graphx = (1-imgx)/2;
 cfr = 1;
-ozrad = 8;
+ozrad = 7;
 zrad = ozrad;
 if exist(save_loc,'file')
     load_var = load(save_loc);
@@ -550,7 +550,7 @@ end
     end
 
     function zoom_in
-        persistent lh
+        persistent lh lzlh
         if rxpos>zrad && rxpos<=ss(2)-zrad && rypos>zrad && rypos<=ss(1)-zrad
             [rxpos, rypos] = cofint(rimg,rxpos,rypos,cfr);
             xpos(cfr) = rxpos;
@@ -563,16 +563,29 @@ end
             image(ah_zoom_img,zimg,'CDataMapping','scaled');
             set(ah_zoom_img,'CLim',[minrc maxrc]);
             
+%             [oxpos, oypos] = cofint(oimg,rxpos,rypos,cfr);
+%             oimgc = oimg(floor(oypos-zrad):floor(oypos+zrad),...
+%                 floor(oxpos-zrad):floor(oxpos+zrad),cfr);
+%             image(ah_orig_img,oimgc,'CDataMapping','scaled');
+%             set(ah_orig_img,'CLim',[minoc maxoc]);
+            lzrad = 5*ozrad;
             [oxpos, oypos] = cofint(oimg,rxpos,rypos,cfr);
-            oimgc = oimg(floor(oypos-zrad):floor(oypos+zrad),...
-                floor(oxpos-zrad):floor(oxpos+zrad),cfr);
+            oimgc = rimg(floor(rypos-lzrad):floor(rypos+lzrad),...
+                floor(rxpos-lzrad):floor(rxpos+lzrad),cfr);
             image(ah_orig_img,oimgc,'CDataMapping','scaled');
-            set(ah_orig_img,'CLim',[minoc maxoc]);
+            set(ah_orig_img,'CLim',[medrc maxrc]);
+            
+            set(ah_orig_img,'Nextplot','add')
+            if exist('lzlh','var'), delete(lzlh); end
+            lzlh = line(ah_orig_img,[lzrad+1-zrad-.5 lzrad+1+zrad+.5 lzrad+1+zrad+.5 lzrad+1-zrad-.5 lzrad+1-zrad-.5],...
+                [lzrad+1-zrad-.5 lzrad+1-zrad-.5 lzrad+1+zrad+.5 lzrad+1+zrad+.5 lzrad+1-zrad-.5],...
+                'color','r','linewidth',.5);
+            set(ah_orig_img,'Nextplot','replace')
             
             set(ah_img,'Nextplot','add')
             if exist('lh','var'), delete(lh); end
-            lh = line(ah_img,[rxpos-zrad rxpos+zrad rxpos+zrad rxpos-zrad rxpos-zrad],...
-                [rypos-zrad rypos-zrad rypos+zrad rypos+zrad rypos-zrad],...
+            lh = line(ah_img,[rxpos-zrad-1 rxpos+zrad rxpos+zrad rxpos-zrad-1 rxpos-zrad-1],...
+                [rypos-zrad-1 rypos-zrad-1 rypos+zrad rypos+zrad rypos-zrad-1],...
                 'color','r','linewidth',1);
             set(ah_img,'Nextplot','replace')
             mask_clip = mask(floor(rypos-zrad):floor(rypos+zrad),floor(rxpos-zrad):floor(rxpos+zrad),cfr);
@@ -711,21 +724,24 @@ end
         % c(5) = theta about z axis
         % c(6) = sd_x
         % c(7) = sd_y
-        [ydata, xdata] = meshgrid(1:size(img,2), 1:size(img,1));
-        F = @(back, amp, x0, y0, th, sx, sy, x, y)back+amp*exp(-( ...
-            (cos(th)^2/(2*sx^2)+sin(th)^2/(2*sy^2))*(x-x0).^2 + ...
-            (sin(2*th)/(4*sy^2)-sin(2*th)/(4*sx^2))*(x-x0).*(y-y0) + ...
-            (sin(th)^2/(2*sx^2)+cos(th)^2/(2*sy^2))*(y-y0).^2));
-        c0 = double([mean(min(img)) max(img(:))-mean(min(img))    ceil(size(img,2)/2) ceil(size(img,1)/2) pi   1             1]);
-        low = double([min(img(:))   mean(img(:))-min(img(:))      c0(3)/2             c0(4)/2             0    0             0]);
-        up = double([mean(img(:))   1.1*(max(img(:))-min(img(:))) 3*c0(3)/2           3*c0(4)/2           2*pi size(img,2)/4 size(img,1)/4]);
-        xdata = double(xdata); ydata = double(ydata); img = double(img);
-        gfit = fit([xdata(:), ydata(:)], img(:), F, 'StartPoint', c0, 'Lower', low, 'Upper', up);
-        axes(ah_int_fit_graph)
-        plot(gfit, [xdata(:), ydata(:)], img(:));
-        c = coeffvalues(gfit);
-        SNR = c(2)/c(1);
-        integ = quad2d(gfit,0.5,size(img,2)+.5,0.5,size(img,1)+.5)-c(1)*size(img,1)*size(img,2);
+        integ = 0; SNR = 0;
+        if zrad>0
+            [ydata, xdata] = meshgrid(1:size(img,2), 1:size(img,1));
+            F = @(back, amp, x0, y0, th, sx, sy, x, y)back+amp*exp(-( ...
+                (cos(th)^2/(2*sx^2)+sin(th)^2/(2*sy^2))*(x-x0).^2 + ...
+                (sin(2*th)/(4*sy^2)-sin(2*th)/(4*sx^2))*(x-x0).*(y-y0) + ...
+                (sin(th)^2/(2*sx^2)+cos(th)^2/(2*sy^2))*(y-y0).^2));
+            c0 = double([mean(min(img)) max(img(:))-mean(min(img))    ceil(size(img,2)/2) ceil(size(img,1)/2) pi   1             1]);
+            low = double([min(img(:))   mean(img(:))-min(img(:))      c0(3)/2             c0(4)/2             0    0             0]);
+            up = double([mean(img(:))   1.1*(max(img(:))-min(img(:))) 3*c0(3)/2           3*c0(4)/2           2*pi size(img,2)/4 size(img,1)/4]);
+            xdata = double(xdata); ydata = double(ydata); img = double(img);
+            gfit = fit([xdata(:), ydata(:)], img(:), F, 'StartPoint', c0, 'Lower', low, 'Upper', up);
+            axes(ah_int_fit_graph)
+            plot(gfit, [xdata(:), ydata(:)], img(:));
+            c = coeffvalues(gfit);
+            SNR = c(2)/c(1);
+            integ = quad2d(gfit,0.5,size(img,2)+.5,0.5,size(img,1)+.5)-c(1)*size(img,1)*size(img,2);
+        end
     end
     function int_img = interpolate_image(img)
         [xhave, yhave] = meshgrid(1:size(img,2),1:size(img,1));
@@ -749,8 +765,8 @@ end
             end
         end
         set(ah_img,'Nextplot','add')
-        bsh = scatter(ah_img,xb,yb,100,'r','x');
-        gsh = scatter(ah_img,xg,yg,150,'g','o');
+        bsh = scatter(ah_img,xb-.5,yb-.5,100,'r','x');
+        gsh = scatter(ah_img,xg-.5,yg-.5,150,'g','o');
         line(ah_img,[ss(2)/2 ss(2)/2],[0 ss(1)],'color',[.3 .3 .3],'linewidth',.5)
         line(ah_img,[0 ss(2)],[ss(1)/2 ss(1)/2],'color',[.3 .3 .3],'linewidth',.5)
         set(ah_img,'Nextplot','replace')
@@ -837,6 +853,7 @@ end
         frame_line(ah_scroll,cfr,[.7 0 0])
     end
     function save_trace(~,~)
+        persistent uih_saved
         if ind>0
             spt = ind;
         else
