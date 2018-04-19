@@ -765,8 +765,8 @@ end
             end
         end
         set(ah_img,'Nextplot','add')
-        bsh = scatter(ah_img,xb,yb,100,'r','x');
-        gsh = scatter(ah_img,xg,yg,150,'g','o');
+        bsh = scatter(ah_img,xb-.5,yb-.5,100,'r','x');
+        gsh = scatter(ah_img,xg-.5,yg-.5,150,'g','o');
         line(ah_img,[ss(2)/2 ss(2)/2],[0 ss(1)],'color',[.3 .3 .3],'linewidth',.5)
         line(ah_img,[0 ss(2)],[ss(1)/2 ss(1)/2],'color',[.3 .3 .3],'linewidth',.5)
         set(ah_img,'Nextplot','replace')
@@ -853,6 +853,7 @@ end
         frame_line(ah_scroll,cfr,[.7 0 0])
     end
     function save_trace(~,~)
+        persistent uih_saved
         if ind>0
             spt = ind;
         else
