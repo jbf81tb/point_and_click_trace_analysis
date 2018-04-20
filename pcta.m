@@ -324,7 +324,7 @@ end
                     set(fh_scroll,'CurrentPoint',cp_tmp);
                     move_callback(fh_scroll)
                     pause(1/30)
-                    key_test = get(gcf,'CurrentCharacter');
+                    key_test = lower(get(gcf,'CurrentCharacter'));
                 catch
                     close all
                     return
