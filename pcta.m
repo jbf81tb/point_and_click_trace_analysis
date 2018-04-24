@@ -900,8 +900,6 @@ end
             ntrace = length(tracest);
             pause(.5)
             scatter_points(cfr)
-            upz = false;
-            ind = already_found(rxpos,rypos,-1); %clear ind text
         catch
             uih_saved = uicontrol(...
                 'Parent',fh_text,...
@@ -913,5 +911,7 @@ end
                 'String','Save failed!!!');
         end
         delete(uih_saved)
+        upz = false;
+        ind = 0;
     end
 end
