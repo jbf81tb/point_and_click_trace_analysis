@@ -207,6 +207,7 @@ uicontrol('Parent',fh_text,...
     '(z,x): Zoom in or zoom out.',...
     '(h,p): Declare hotspot or declare pair.',...
     '(l,u): Lock or unlock frame scrolling.',...
+    '(g,c): Goto a trace or goto the next trace.',...
     '(delete): Delete a trace.',...
     '(backspace): Disable the zoom window.',...
     '(4): Reduce the image to a single quadrant.'})
@@ -301,6 +302,7 @@ end
         %h,p - declare Hotspots and Pairs
         %delete - delete trace from structure
         %backspace - stop zooming and graphing
+        %g,c - goto trace and next trace
         %k - save structure and mask ('Keep')
         %4 - select a quadrant
         if strcmp(event.Key,'escape')
@@ -324,7 +326,7 @@ end
                     set(fh_scroll,'CurrentPoint',cp_tmp);
                     move_callback(fh_scroll)
                     pause(1/30)
-                    key_test = get(gcf,'CurrentCharacter');
+                    key_test = lower(get(gcf,'CurrentCharacter'));
                 catch
                     close all
                     return
@@ -418,10 +420,10 @@ end
             ind = already_found(rxpos,rypos,-1); %clear ind text
             move_callback(fh_img)
         end
-        if strcmp(event.Key,'g') || strcmp(event.Key,'b')
+        if strcmp(event.Key,'g') || strcmp(event.Key,'c')
             if strcmp(event.Key,'g')
                 goto_trace;
-            elseif strcmp(event.Key,'b')
+            elseif strcmp(event.Key,'c')
                 upz = true;
                 zoom_in
                 goto_trace(ind+1);
@@ -899,9 +901,6 @@ end
             mh.tracest=tracest;
             ntrace = length(tracest);
             pause(.5)
-            scatter_points(cfr)
-            upz = false;
-            ind = already_found(rxpos,rypos,-1); %clear ind text
         catch
             uih_saved = uicontrol(...
                 'Parent',fh_text,...
@@ -913,5 +912,8 @@ end
                 'String','Save failed!!!');
         end
         delete(uih_saved)
+        upz = false;
+        move_callback(fh_img)
+        ind = 0;
     end
 end
