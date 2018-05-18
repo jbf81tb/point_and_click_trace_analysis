@@ -249,6 +249,7 @@ while true
         else
             tracest(ntrace+1).ishot = false; %#ok<*AGROW>
             tracest(ntrace+1).ispair = false;
+            mask(mask==bitcmp(0,'uint16')) = 0;
         end
         upz = true;
         zoom_in;
@@ -261,8 +262,7 @@ while true
         end
         try tracest(ntrace+1) = []; catch, end
         mask(mask==bitcmp(0,'uint16')) = 0;
-        mh.mask = mask;
-        mh.tracest = tracest;
+        save(save_loc,'tracest','mask')
         close all
         return;
     end
@@ -295,7 +295,7 @@ end
         %escape - save and escape from program
         %q,w,e - set frame window
         %l,u - Lock or Unlock mouse scrolling
-        %z,x,c - Zoom level
+        %z,x - Zoom level
         %a,s - individual frame movement
         %n - show trace Numbers
         %f - click in place
@@ -333,10 +333,9 @@ end
                 end
             end
         end
-        if strcmp(event.Key,'z') || strcmp(event.Key,'x') || strcmp(event.Key,'c')
+        if strcmp(event.Key,'z') || strcmp(event.Key,'x')
             if strcmp(event.Key,'z'), zrad = zrad-1; end
             if strcmp(event.Key,'x'), zrad = zrad+1; end
-            if strcmp(event.Key,'c'), zrad = ozrad; end
             zoom_in;
         end
         if strcmp(event.Key,'a') || strcmp(event.Key,'s')
@@ -373,7 +372,7 @@ end
                 else
                     tracest(ind).ishot = true;
                 end
-                mh.tracest = tracest;
+                save(save_loc,'tracest','-append')
                 upz = false;
                 ind = already_found(rxpos,rypos,-1); %clear ind text
                 move_callback(fh_img)
@@ -386,7 +385,7 @@ end
                 else
                     tracest(ind).ispair = true;
                 end
-                mh.tracest = tracest;
+                save(save_loc,'tracest','-append')
                 upz = false;
                 ind = already_found(rxpos,rypos,-1); %clear ind text
                 move_callback(fh_img)
@@ -431,8 +430,7 @@ end
         end
         if strcmp(event.Key,'k')
             mask(mask==bitcmp(0,'uint16')) = 0;
-            mh.mask = mask;
-            mh.tracest = tracest;
+            save(save_loc,'tracest','mask')
             ntrace = length(tracest);
         end
         if strcmp(event.Key,'4') || strcmp(event.Key,'numpad4')
@@ -545,8 +543,7 @@ end
         mask(mask==bitcmp(0,'uint16')) = 0;
         ntrace = length(tracest);
         scatter_points(cfr);
-        mh.mask = mask;
-        mh.tracest = tracest;
+        save(save_loc,'tracest','mask')
         ind = already_found(rxpos,rypos,-1); %clear ind text
         close(afh)
     end
@@ -571,6 +568,18 @@ end
 %             image(ah_orig_img,oimgc,'CDataMapping','scaled');
 %             set(ah_orig_img,'CLim',[minoc maxoc]);
             lzrad = 5*ozrad;
+            if floor(rxpos-lzrad)<1
+                lzrad = floor(rxpos-1);
+            end
+            if floor(rxpos+lzrad)>ss(2)
+                lzrad = floor(ss(2)-rxpos);
+            end
+            if floor(rypos-lzrad)<1
+                lzrad = floor(rypos-1);
+            end
+            if floor(rypos+lzrad)>ss(1)
+                lzrad = floor(ss(1)-rypos);
+            end
             [oxpos, oypos] = cofint(oimg,rxpos,rypos,cfr);
             oimgc = rimg(floor(rypos-lzrad):floor(rypos+lzrad),...
                 floor(rxpos-lzrad):floor(rxpos+lzrad),cfr);
@@ -653,7 +662,7 @@ end
                 floor(rxpos-zrad):floor(rxpos+zrad),frame)>0));
             if redo
                 tracest(ind).area(tracest(ind).frame==frame) = area(frame);
-                mh.tracest=tracest;
+                save(save_loc,'tracest','-append')
             end
         end
         if disp
@@ -710,7 +719,7 @@ end
                 if strcmpi(type,'srrf')
                     tracest(ind).srrfint(tracest(ind).frame==frame) = srrfint(frame);
                 end
-                mh.tracest=tracest;
+                save(save_loc,'tracest','-append')
             end
         end
         if disp
@@ -822,7 +831,7 @@ end
         end
         zoom_in;
         if ind>0
-            mh.tracest=tracest;
+            save(save_loc,'tracest','-append')
         end
     end
     function ind = already_found(xp,yp,frame)
@@ -898,7 +907,7 @@ end
                 mask(floor(min(ypos(ff:lf))):ceil(max(ypos(ff:lf))),...
                 floor(min(xpos(ff:lf))):ceil(max(xpos(ff:lf))),...
                 ff:lf);
-            mh.tracest=tracest;
+            save(save_loc,'tracest','-append')
             ntrace = length(tracest);
             pause(.5)
         catch
