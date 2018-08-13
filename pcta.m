@@ -1,5 +1,7 @@
 function pcta(reconmovnm,origmovnm,varargin)
 % PCTA: Point-and-click trace analysis
+% pcta(reconstructed_movie, original_movie, save_file = './tracest.mat',...
+%      reconstruction_type = 'sim', movie_type = 'tif'); 
 %
 % TODO: saving clips and linking clips to mask
 %
