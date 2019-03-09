@@ -1,7 +1,7 @@
 # Analyze clathrin-coated pits with mouse and keyboard input
 Users are presented with a large window containing an image of the cell. The user can scroll along the frame slider to search through the movie for an ideal structure. If the user considers the features too small to see very well, they can zoom in on a quadrant for a 4x apparent increase in size. Once an interesting structure is located the user should adjust the slider near the beginning of the lifetime of the structure and then click on it.
 
-![Full screen appearance](/pics/full_pic.png)
+![Full screen appearance](https://github.com/jbf81tb/point_and_click_trace_analysis/blob/master/docs/pics/full_pic.png)
 
 Upon clicking, the rest of the windows fill with information on the currently selected structure. Two windows are devoted to increasing zooms of the structure selected. Every window will automatically center on the structure. 
 
