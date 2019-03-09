@@ -5,6 +5,8 @@ Users are presented with a large window containing an image of the cell. The use
 
 Upon clicking, the rest of the windows fill with information on the currently selected structure. Two windows are devoted to increasing zooms of the structure selected. Every window will automatically center on the structure. 
 
+![test image](https://knowpathology.com.au/app/uploads/2018/07/Happy-Test-Screen-01-825x510.png)
+
 On the most zoomed image will be circles corresponding to the automatically calculated area of the structure. Occasionally, the structure will have a "C" shape and so the area calculation will not be able to close the circle. In this case the user can left-click on this window to select a pixel that should be considered in the area, and once the user has closed the circle the area will automatically fill in. For dim structures the algorithm might consider too much to be in the area so a right-click can deselect unnecessary pixels.
 
 The second-most zoomed image allows the user to have a wider view of neighboring structures while keeping a tight view on the structure of interest. In this way they can make sure that no other structures interfere with the structure of interest.
